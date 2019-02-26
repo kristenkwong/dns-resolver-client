@@ -19,6 +19,10 @@ public class DNSLookupService {
     private static DNSCache cache = DNSCache.getInstance();
 
     private static Random random = new Random();
+    final static int MAX_QUERY_ID = 0xFFFF; // must be 16 bit -> 0x0 to 0xFFFF
+
+    private static int[] generatedIDs = new int[65536]; // can have 65536 unique values
+    // if the ID was generated, generatedIDs[ID#] will be 1, otherwise 0
 
     /**
      * Main function, called when program is first invoked.
@@ -175,6 +179,14 @@ public class DNSLookupService {
             return Collections.emptySet();
         }
 
+        // look for CNAME record in the cache; if found, return
+
+        // if not in cache, retrieve result from root server
+
+        // check in cache for the result (retrieveResultsFromServer doesn't return, only caches)
+
+        
+
         // TODO To be completed by the student
 
         return cache.getCachedResults(node);
@@ -191,6 +203,42 @@ public class DNSLookupService {
     private static void retrieveResultsFromServer(DNSNode node, InetAddress server) {
 
         // TODO To be completed by the student
+
+        // encode a query with a unique ID and host name & records
+        int queryID = generateQueryID();
+
+        // send as a query datagram through socket to the server
+
+        // receive response datagram
+
+
+        // decode response datagram
+
+        
+        // store response in the cache
+
+
+    }
+
+    /**
+     * Encode a DNS query.
+     */
+    private static byte[] encodeDNSQuery(int queryID, DNSNode node) {
+        // 4.2.1: UDP packets are 512 bytes
+    } 
+
+    /**
+     * Generates a unique query ID between 0 and 65535.
+     */
+    private static int generateQueryID() {
+        int n = rand.nextInt(MAX_QUERY_ID + 1);
+        
+        if (generatedIDs[n] == 1) { // if the ID has already been generated, try again
+            return generateQueryID();
+        } else {
+            generatedIDs[n] = 1; // set to used ID
+            return n;
+        }
     }
 
     private static void verbosePrintResourceRecord(ResourceRecord record, int rtype) {

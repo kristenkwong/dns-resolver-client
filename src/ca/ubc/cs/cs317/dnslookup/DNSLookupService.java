@@ -184,11 +184,11 @@ public class DNSLookupService {
         // if not in cache, retrieve result from root server
 
         // check in cache for the result (retrieveResultsFromServer doesn't return, only caches)
-
-        
+        retrieveResultsFromServer(node, rootServer);
 
         // TODO To be completed by the student
 
+        // return the 
         return cache.getCachedResults(node);
     }
 
@@ -207,12 +207,48 @@ public class DNSLookupService {
         // encode a query with a unique ID and host name & records
         int queryID = generateQueryID();
 
+        if (verboseTracing) {
+
+            /* For each query that is sent start by printing 2 blank lines. If a query is 
+            repeated because of a timeout the query is to be reprinted at the time of the timeout. 
+            Note that a resent query will have the same query ID.*/
+            System.out.print("\n\n");
+
+            /* Print the phrase "Query ID" followed by 5 spaces, then the query ID itself, a space, 
+            the name being looked up, two spaces, then the query type (e.g., A or AAAA), a space, 
+            "-->", another space and finally the IP address of the DNS server being consulted. */
+            System.out.printf("Query ID     %d %s  %s --> %d\n", queryID, node.getHostName(), node.getType(), server);
+
+        }
+
+
         // send as a query datagram through socket to the server
 
         // receive response datagram
+        int responseID = 0;
+        boolean isAuthoritative = true;
+        int numResponses = 0;
 
 
         // decode response datagram
+        if (verboseTracing) {
+
+            /* The next line is the the phrase "Response ID:", a space, the ID of the response, a space, 
+            the word Authoritative, a space, an equal sign, another space, and the word true or false to 
+            indicate if this response is authoritative or not. */
+            System.out.printf("Response ID: %d Authoritative = %b\n", responseID, isAuthoritative);
+
+            /* The next line consists of 2 spaces, the word Answers, followed by a space and the number 
+            of response records in the answer in parenthesis. */
+            System.out.printf("  Answers %d", numResponses);
+
+            /* For each response record you are to print the records Name, followed by its time-to-live, 
+            record type in (one of A, AAAA, CN, NS, or else the type number) followed by the type value. 
+            The formatting of the value depends upon its type. A format string that you can use with the 
+            format method to achieve the formatting required when printing a resource record is found in 
+            the method verbosePrintResourceRecord, provided with the code. */
+            
+        }
 
         
         // store response in the cache
@@ -225,13 +261,24 @@ public class DNSLookupService {
      */
     private static byte[] encodeDNSQuery(int queryID, DNSNode node) {
         // 4.2.1: UDP packets are 512 bytes
+        // TODO
+        return null;
     } 
+
+    /**
+     * Decodes a DNS response from a given byte array.
+     */
+    private static byte[] decodeDNSQuery(byte[] response) {
+        // assume response is less than 1024 bytes
+        // TODO
+        return null;
+    }
 
     /**
      * Generates a unique query ID between 0 and 65535.
      */
     private static int generateQueryID() {
-        int n = rand.nextInt(MAX_QUERY_ID + 1);
+        int n = random.nextInt(MAX_QUERY_ID + 1);
         
         if (generatedIDs[n] == 1) { // if the ID has already been generated, try again
             return generateQueryID();

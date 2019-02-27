@@ -328,8 +328,8 @@ public class DNSLookupService {
 
     /**
      * Converts the domain name to a suitable format for Qname
-     * @param hostName
-     * @return
+     * @param hostName host name to translate
+     * @return host name in the format of a QNAME (byte array)
      */
     private static byte[] domainToQname(String hostName) {
         String[] splitDomain = hostName.split(".");

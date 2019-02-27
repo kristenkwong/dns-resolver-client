@@ -247,10 +247,10 @@ public class DNSLookupService {
             The formatting of the value depends upon its type. A format string that you can use with the 
             format method to achieve the formatting required when printing a resource record is found in 
             the method verbosePrintResourceRecord, provided with the code. */
-            
+
         }
 
-        
+
         // store response in the cache
 
 
@@ -263,7 +263,7 @@ public class DNSLookupService {
         // 4.2.1: UDP packets are 512 bytes
         // TODO
         return null;
-    } 
+    }
 
     /**
      * Decodes a DNS response from a given byte array.
@@ -279,7 +279,7 @@ public class DNSLookupService {
      */
     private static int generateQueryID() {
         int n = random.nextInt(MAX_QUERY_ID + 1);
-        
+
         if (generatedIDs[n] == 1) { // if the ID has already been generated, try again
             return generateQueryID();
         } else {

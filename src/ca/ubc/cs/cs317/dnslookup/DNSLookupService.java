@@ -1,9 +1,6 @@
 package ca.ubc.cs.cs317.dnslookup;
 
-import java.io.BufferedWriter;
-import java.io.Console;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import java.io.*;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
@@ -261,7 +258,36 @@ public class DNSLookupService {
     private static byte[] encodeDNSQuery(byte[] queryID, DNSNode node) {
         // http://www.zytrax.com/books/dns/ch15/
         Writer out = new BufferedWriter(new OutputStreamWriter(System.out));
+        ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
         DNSMessage dnsQuery = new DNSMessage();
+        try {
+            // header section
+            bOutput.write(queryID);
+            // qr, qpcode, aa, tc, rd
+            bOutput.write(0);
+            bOutput.write(0);
+            // ra, z, rcode
+            bOutput.write(0);
+            bOutput.write(0);
+            // qd count
+            byte[] qdCount = new byte[2];
+            qdCount[0] = (byte) 0;
+            qdCount[1] = (byte) 1;
+            bOutput.write(qdCount, 4, 2);
+            // ancount, nscount, arcount
+            bOutput.write(0);
+            bOutput.write(0);
+            bOutput.write(0);
+            bOutput.write(0);
+            bOutput.write(0);
+            bOutput.write(0);
+            // question section
+            // TODO
+            String[] domainNameArray = node.getHostName().split(".");
+
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
         // HEADER SECTION
         dnsQuery.setQueryId(queryID);
         dnsQuery.setQr(0); // specifies message is a query (1 bit)
@@ -284,7 +310,7 @@ public class DNSLookupService {
 
         // 4.2.1: UDP packets are 512 bytes maximum
         // TODO
-        return null;
+        return bOutput.toByteArray();
     }
 
     /**
@@ -294,6 +320,26 @@ public class DNSLookupService {
         // assume response is less than 1024 bytes
         // TODO
         return null;
+    }
+
+    /**
+     * Converts the domain name to a suitable format for Qname
+     * @param hostName
+     * @return
+     */
+    private static byte[] domainToQname(String hostName) {
+        String[] splitDomain = hostName.split(".");
+        ByteArrayOutputStream dnameOutput = new ByteArrayOutputStream(splitDomain.length);
+        for (String part : splitDomain) {
+            // write the length of the label first
+            dnameOutput.write(part.length());
+            for (int index = 0; index < part.length(); index++) {
+                // convert string to hex
+                int ascii = (int) part.charAt(index);
+                dnameOutput.write(ascii);
+            }
+        }
+        return dnameOutput.toByteArray();
     }
 
     /**

@@ -8,7 +8,7 @@ public class DNSMessage {
     private int RA; // recursion available (1 bit)
     private int Z; // reserved for future use - keep at 0 (3 bits)
     private int RCODE; // response code (4 bits)
-    private int queryId; // query id (16 bits)
+    private byte[] queryId; // query id (16 bits)
     private int qClass; // a two octet code that specifies the class of the query (16 bits)
     private int qType; // a two octet code which specifies the type of the query (16 bits)
     private String qName; // represents the domain name
@@ -27,7 +27,7 @@ public class DNSMessage {
         this.RA = 0;
         this.Z = 0;
         this.RCODE = 0;
-        this.queryId = 0;
+        this.queryId = new byte[2];
         this.qClass = 0;
         this.qType = 0;
         this.qName = "";
@@ -65,11 +65,11 @@ public class DNSMessage {
         this.RCODE = RCODE;
     }
 
-    public int getQueryId() {
+    public byte[] getQueryId() {
         return queryId;
     }
 
-    public void setQueryId(int queryId) {
+    public void setQueryId(byte[] queryId) {
         this.queryId = queryId;
     }
 

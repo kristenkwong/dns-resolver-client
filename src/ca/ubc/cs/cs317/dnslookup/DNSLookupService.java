@@ -258,7 +258,7 @@ public class DNSLookupService {
     /**
      * Encode a DNS query.
      */
-    private static byte[] encodeDNSQuery(int queryID, DNSNode node) {
+    private static byte[] encodeDNSQuery(byte[] queryID, DNSNode node) {
         // http://www.zytrax.com/books/dns/ch15/
         Writer out = new BufferedWriter(new OutputStreamWriter(System.out));
         DNSMessage dnsQuery = new DNSMessage();
@@ -308,6 +308,16 @@ public class DNSLookupService {
             generatedIDs[n] = 1; // set to used ID
             return n;
         }
+    }
+
+    /**
+     * Generate a unique query ID between 0bx0000 and 0bxFFFF
+     * @return
+     */
+    private static byte[] generateQueryIDBytes() {
+        byte[] b = new byte[2];
+        new Random().nextBytes(b);
+        return b;
     }
 
     private static void verbosePrintResourceRecord(ResourceRecord record, int rtype) {

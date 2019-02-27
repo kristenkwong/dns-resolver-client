@@ -179,14 +179,30 @@ public class DNSLookupService {
             return Collections.emptySet();
         }
 
-        // look for CNAME record in the cache; if found, return
-
-        // if not in cache, retrieve result from root server
-
-        // check in cache for the result (retrieveResultsFromServer doesn't return, only caches)
-        retrieveResultsFromServer(node, rootServer);
-
         // TODO To be completed by the student
+
+        // if the DNSNode is a CNAME, have to do recursion to handle the root domain
+        /* Note that if the provided name is an alias for another name (e.g. prep.ai.mit.edu 
+        is an alias for ftp.gnu.org) then the program is to resolve the CNAME and return the 
+        IP address of the CNAME or a failure if the CNAME cannot be resolved. A CNAME may 
+        itself point to another CNAME and so-on. To avoid infinite loops when doing CNAME 
+        lookups, you may assume that if your program has issued 10 queries then the name cannot 
+        be resolved. At this point your program will report that the name was not found. Also 
+        note that when dealing with a CNAME there are two or more TTL result fields that need 
+        to be considered. For example the initial result record that reports something as a CNAME 
+        will have a particular TTL value. In addition the final address record will also have a 
+        TTL value. In this situation you are to report the TTL of the final IP address.
+         */
+
+        // look for record in the cache; if found, return
+        if (cache.getCachedResults(node).isEmpty()) {
+
+            // if not in cache, retrieve result from root server
+
+            // check in cache for the result (retrieveResultsFromServer doesn't return, only caches)
+            retrieveResultsFromServer(node, rootServer);
+
+        }
 
         // return the 
         return cache.getCachedResults(node);
@@ -203,6 +219,7 @@ public class DNSLookupService {
     private static void retrieveResultsFromServer(DNSNode node, InetAddress server) {
 
         // TODO To be completed by the student
+        String DNSServerAddress = new String(server.getHostAddress());
 
         // encode a query with a unique ID and host name & records
         int queryID = generateQueryID();
@@ -217,7 +234,7 @@ public class DNSLookupService {
             /* Print the phrase "Query ID" followed by 5 spaces, then the query ID itself, a space, 
             the name being looked up, two spaces, then the query type (e.g., A or AAAA), a space, 
             "-->", another space and finally the IP address of the DNS server being consulted. */
-            System.out.printf("Query ID     %d %s  %s --> %d\n", queryID, node.getHostName(), node.getType(), server);
+            System.out.printf("Query ID     %d %s  %s --> %s\n", queryID, node.getHostName(), node.getType(), DNSServerAddress);
 
         }
 
@@ -240,14 +257,15 @@ public class DNSLookupService {
 
             /* The next line consists of 2 spaces, the word Answers, followed by a space and the number 
             of response records in the answer in parenthesis. */
-            System.out.printf("  Answers %d", numResponses);
+            System.out.printf("  Answers (%d)\n", numResponses);
 
             /* For each response record you are to print the records Name, followed by its time-to-live, 
             record type in (one of A, AAAA, CN, NS, or else the type number) followed by the type value. 
             The formatting of the value depends upon its type. A format string that you can use with the 
             format method to achieve the formatting required when printing a resource record is found in 
             the method verbosePrintResourceRecord, provided with the code. */
-            
+
+
         }
 
         
@@ -259,16 +277,16 @@ public class DNSLookupService {
     /**
      * Encode a DNS query.
      */
-    private static byte[] encodeDNSQuery(int queryID, DNSNode node) {
+    private static byte[] encodeDNSQuery(DNSMessage queryMessage) {
         // 4.2.1: UDP packets are 512 bytes
         // TODO
         return null;
     } 
 
     /**
-     * Decodes a DNS response from a given byte array.
+     * Decodes a DNS response from a given byte array. Returns a query message.
      */
-    private static byte[] decodeDNSQuery(byte[] response) {
+    private static DNSMessage decodeDNSQuery(byte[] response) {
         // assume response is less than 1024 bytes
         // TODO
         return null;

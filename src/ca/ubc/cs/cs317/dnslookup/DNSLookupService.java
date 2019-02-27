@@ -1,6 +1,9 @@
 package ca.ubc.cs.cs317.dnslookup;
 
+import java.io.BufferedWriter;
 import java.io.Console;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
@@ -249,18 +252,37 @@ public class DNSLookupService {
             the method verbosePrintResourceRecord, provided with the code. */
 
         }
-
-
         // store response in the cache
-
-
     }
 
     /**
      * Encode a DNS query.
      */
     private static byte[] encodeDNSQuery(int queryID, DNSNode node) {
-        // 4.2.1: UDP packets are 512 bytes
+        // http://www.zytrax.com/books/dns/ch15/
+        Writer out = new BufferedWriter(new OutputStreamWriter(System.out));
+        DNSMessage dnsQuery = new DNSMessage();
+        // HEADER SECTION
+        dnsQuery.setQueryId(queryID);
+        dnsQuery.setQr(0); // specifies message is a query (1 bit)
+        dnsQuery.setOpCode(0); // specifies standard query (4 bits)
+        dnsQuery.setAA(0); // valid in responses, set to 0 for queries (1 bit)
+        dnsQuery.setTC(0); // specifies if message was truncated (1 bit)
+        dnsQuery.setRD(0); // specifies a non-recursive query (1 bit)
+        dnsQuery.setRA(0); // recursion available (1 bit)
+        dnsQuery.setZ(0); // set to 0 (3 bits)
+        dnsQuery.setRCODE(0); // response code, set to 0 for queries (4 bits)
+        dnsQuery.setQdCount(1); // 1 question entry in the query (16 bits)
+        dnsQuery.setAnCount(0); // 16 bits
+        dnsQuery.setNsCount(0); // 16 bits
+        dnsQuery.setArCount(0); // 16 bits
+        // QUESTION SECTION
+        dnsQuery.setqName(node.getHostName()); // sets domain name
+        // TODO: split the domain name into sequence of labels - divided by periods
+        dnsQuery.setqType(node.getType().getCode()); // sets the qtype (16 bits)
+        dnsQuery.setqClass(1); // set to 1 for IN(ternet) (16 bits)
+
+        // 4.2.1: UDP packets are 512 bytes maximum
         // TODO
         return null;
     }

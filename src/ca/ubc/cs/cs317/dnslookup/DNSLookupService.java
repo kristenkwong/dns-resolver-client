@@ -205,6 +205,23 @@ public class DNSLookupService {
         // encode a query with a unique ID and host name & records
         int queryID = generateQueryID();
 
+        // TESTING THE BYTE STREAM FOR CORRECTNESS
+        DNSMessage dnsMessage = new DNSMessage();
+        dnsMessage.setQueryId(queryID);
+        dnsMessage.setqName(node.getHostName());
+        dnsMessage.setqType(node.getType().getCode());
+        byte[] encodedBytes = encodeDNSQuery(dnsMessage);
+        DatagramPacket packet = new DatagramPacket(encodedBytes, encodedBytes.length, rootServer, DEFAULT_DNS_PORT);
+        try {
+            socket.send(packet);
+            byte[] receiver = new byte[1024];
+            DatagramPacket received = new DatagramPacket(receiver, receiver.length);
+            socket.receive(received);
+            System.out.println(received);
+        } catch(IOException ex) {
+            ex.printStackTrace();
+        }
+
         if (verboseTracing) {
 
             /* For each query that is sent start by printing 2 blank lines. If a query is 
@@ -254,13 +271,18 @@ public class DNSLookupService {
      */
     private static byte[] encodeDNSQuery(DNSMessage dnsMessage) {
         // http://www.zytrax.com/books/dns/ch15/
+        System.out.println(dnsMessage.getqName());
         ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
         DNSMessage dnsQuery = new DNSMessage();
         int queryid = dnsMessage.getQueryId();
         try {
             // header section
-            // convert query id from int to byte array TODO: check byte order
-            bOutput.write(ByteBuffer.allocate(2).putInt(queryid).array());
+            // convert query id from int to byte array
+            byte[] intArray = ByteBuffer.allocate(4).putInt(queryid).array();
+            byte[] queryIdArray = new byte[2];
+            queryIdArray[0] = intArray[2];
+            queryIdArray[1] = intArray[3];
+            bOutput.write(queryIdArray);
             // qr, qpcode, aa, tc, rd
             bOutput.write(0);
             bOutput.write(0);
@@ -270,7 +292,7 @@ public class DNSLookupService {
             // qd count
             byte[] qdCount = new byte[2];
             qdCount[1] = (byte) 1;
-            bOutput.write(qdCount, 4, 2);
+            bOutput.write(qdCount);
             // ancount, nscount, arcount
             bOutput.write(0);
             bOutput.write(0);
@@ -290,28 +312,12 @@ public class DNSLookupService {
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
-        // TODO: maybe we don't need this
-//        // HEADER SECTION
-//        dnsQuery.setQueryId(queryID);
-//        dnsQuery.setQr(0); // specifies message is a query (1 bit)
-//        dnsQuery.setOpCode(0); // specifies standard query (4 bits)
-//        dnsQuery.setAA(0); // valid in responses, set to 0 for queries (1 bit)
-//        dnsQuery.setTC(0); // specifies if message was truncated (1 bit)
-//        dnsQuery.setRD(0); // specifies a non-recursive query (1 bit)
-//        dnsQuery.setRA(0); // recursion available (1 bit)
-//        dnsQuery.setZ(0); // set to 0 (3 bits)
-//        dnsQuery.setRCODE(0); // response code, set to 0 for queries (4 bits)
-//        dnsQuery.setQdCount(1); // 1 question entry in the query (16 bits)
-//        dnsQuery.setAnCount(0); // 16 bits
-//        dnsQuery.setNsCount(0); // 16 bits
-//        dnsQuery.setArCount(0); // 16 bits
-//        // QUESTION SECTION
-//        dnsQuery.setqName(node.getHostName()); // sets domain name
-//        dnsQuery.setqType(node.getType().getCode()); // sets the qtype (16 bits)
-//        dnsQuery.setqClass(1); // set to 1 for IN(ternet) (16 bits)
-
         // 4.2.1: UDP packets are 512 bytes maximum
         // TODO
+        byte[] example = bOutput.toByteArray();
+        for (byte b : example) {
+            System.out.print(String.format("%02X ", b) + " ");
+        }
         return bOutput.toByteArray();
     }
 
@@ -330,7 +336,7 @@ public class DNSLookupService {
      * @return host name in the format of a QNAME (byte array)
      */
     private static byte[] domainToQname(String hostName) {
-        String[] splitDomain = hostName.split(".");
+        String[] splitDomain = hostName.split("\\.");
         ByteArrayOutputStream dnameOutput = new ByteArrayOutputStream(splitDomain.length);
         for (String part : splitDomain) {
             // write the length of the label first
@@ -341,6 +347,7 @@ public class DNSLookupService {
                 dnameOutput.write(ascii);
             }
         }
+        dnameOutput.write(0);
         return dnameOutput.toByteArray();
     }
 

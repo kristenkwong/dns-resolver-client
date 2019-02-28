@@ -241,11 +241,10 @@ public class DNSLookupService {
         // send as a query datagram through socket to the server
         DatagramPacket packet = new DatagramPacket(encodedBytes, encodedBytes.length, rootServer, DEFAULT_DNS_PORT);
 
+        byte[] receiver = new byte[1024];
+        DatagramPacket received = new DatagramPacket(receiver, receiver.length);
         try {
             socket.send(packet);
-            socket.setSoTimeout(5000);
-            byte[] receiver = new byte[1024];
-            DatagramPacket received = new DatagramPacket(receiver, receiver.length);
             try {
                 socket.receive(received);
             } catch (SocketTimeoutException e) {
@@ -256,9 +255,8 @@ public class DNSLookupService {
                 }
                 socket.send(packet);
             }
-            // check received data...
+            // check received response to see if it's valid
             // TODO
-            System.out.print(received);
             
         } catch(IOException ex) {
             // TODO do something
@@ -268,7 +266,6 @@ public class DNSLookupService {
         // TODO: if no response received, resend the packet
 
         // decode the received packet
-
 
 
         // receive response datagram

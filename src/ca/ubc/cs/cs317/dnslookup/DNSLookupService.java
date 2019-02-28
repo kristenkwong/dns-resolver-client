@@ -225,6 +225,7 @@ public class DNSLookupService {
             /* Print the phrase "Query ID" followed by 5 spaces, then the query ID itself, a space, 
             the name being looked up, two spaces, then the query type (e.g., A or AAAA), a space, 
             "-->", another space and finally the IP address of the DNS server being consulted. */
+
             System.out.printf("Query ID     %d %s  %s --> %s\n", queryID, node.getHostName(), node.getType(), DNSServerAddress);
 
         }
@@ -239,7 +240,13 @@ public class DNSLookupService {
         byte[] encodedBytes = encodeDNSQuery(dnsMessage);
 
         // send as a query datagram through socket to the server
-        DatagramPacket packet = new DatagramPacket(encodedBytes, encodedBytes.length, rootServer, DEFAULT_DNS_PORT);
+        /* For testing timeout:
+        try {
+            server = InetAddress.getByName("www.google.ca");
+        } catch (Exception e) {
+            System.out.print(e);
+        } */
+        DatagramPacket packet = new DatagramPacket(encodedBytes, encodedBytes.length, server, DEFAULT_DNS_PORT);
 
         byte[] receiver = new byte[1024];
         DatagramPacket received = new DatagramPacket(receiver, receiver.length);
@@ -261,16 +268,13 @@ public class DNSLookupService {
         } catch(IOException ex) {
             // TODO do something
             ex.printStackTrace();
-        } 
-
-        // TODO: if no response received, resend the packet
+        }
 
         // decode the received packet
-
+        DNSMessage response = decodeDNSQuery(received.getData());
 
         // receive response datagram
-        int responseID = 0;
-        boolean isAuthoritative = true;
+        boolean isAuthoritative = (response.getAA() == 1);
         int numResponses = 0;
 
         // decode response datagram
@@ -279,7 +283,7 @@ public class DNSLookupService {
             /* The next line is the the phrase "Response ID:", a space, the ID of the response, a space, 
             the word Authoritative, a space, an equal sign, another space, and the word true or false to 
             indicate if this response is authoritative or not. */
-            System.out.printf("Response ID: %d Authoritative = %b\n", responseID, isAuthoritative);
+            System.out.printf("Response ID: %d Authoritative = %b\n", response.getQueryId(), isAuthoritative);
 
             /* The next line consists of 2 spaces, the word Answers, followed by a space and the number 
             of response records in the answer in parenthesis. */
@@ -343,15 +347,7 @@ public class DNSLookupService {
         // TODO
         // THIS CODE BELOW IS JUST TO PRINT OUT THE ENCODED DNS QUERY - for testing only
 //        byte[] example = bOutput.toByteArray();
-//        int two = 1;
-//        for (byte b : example) {
-//            System.out.print(String.format("%02X ", b) + " ");
-//            if (two == 2) {
-//                two = 0;
-//                System.out.println();
-//            }
-//            two++;
-//        }
+//        printByteArray(example);
         return bOutput.toByteArray();
     }
 
@@ -361,7 +357,249 @@ public class DNSLookupService {
     private static DNSMessage decodeDNSQuery(byte[] response) {
         // assume response is less than 1024 bytes
         // TODO
-        return null;
+
+        // printByteArray(response);
+        printDatagramPacketInBits(response);
+
+        DNSMessage message = new DNSMessage();
+
+        // ------ HEADER ------ 
+        
+        // ID (16 bits - 2 bytes)
+        byte[] parsedId = {response[0], response[1]};
+        int queryId = bytesToInt(parsedId);
+        message.setQueryId(queryId);
+
+        // QR (1 bit)
+        int QR = getBitAtPosition(response[2], 0);
+        System.out.println("QR: " + QR);
+        message.setQr(QR);
+
+        // OPCODE (4 bits)
+        int[] parsedOpcode = new int[4];
+        for (int i = 1; i <= 4; i++) {
+            parsedOpcode[i-1] = getBitAtPosition(response[2], i);
+        }
+        int OPCODE = bitsToInt(parsedOpcode);
+        message.setOpCode(OPCODE);
+        System.out.println("OPCODE: " + OPCODE);
+
+        // AA (1 bit)
+        int AA = getBitAtPosition(response[2], 5);
+        message.setAA(AA);
+        System.out.println("AA: " + AA);
+
+        // TC (1 bit)
+        int TC = getBitAtPosition(response[2], 6);
+        message.setTC(TC);
+        System.out.println("TC: " + TC);
+
+        // RD (1 bit)
+        int RD = getBitAtPosition(response[2], 7);
+        message.setRD(RD);
+        System.out.println("RD: " + RD);
+
+        // RA (1 bit)
+        int RA = getBitAtPosition(response[3], 0);
+        message.setRA(RA);
+        System.out.println("RA: " + RA);
+
+        // Z (3 bits)
+        int[] parsedZ = new int[4];
+        for (int i = 1; i <= 3; i++) {
+            parsedZ[i-1] = getBitAtPosition(response[3], i);
+        }
+        int Z = bitsToInt(parsedZ);
+        message.setZ(Z);
+        System.out.println("Z: " + Z);
+
+        // RCODE (4 bits)
+        int[] parsedRcode = new int[4];
+        for (int i = 1; i <= 3; i++) {
+            parsedRcode[i-1] = getBitAtPosition(response[3], i);
+        }
+        int RCODE = bitsToInt(parsedRcode);
+        message.setRCODE(RCODE);
+        System.out.println("RCODE: " + RCODE);
+
+        // QDCOUNT (16 bits)
+        int[] parsedQDCount = new int[16];
+        for (int i = 0; i <= 7; i++) {
+            parsedQDCount[i] = getBitAtPosition(response[4], i);
+        }
+        for (int i = 0; i <= 7; i++) {
+            parsedQDCount[8+i] = getBitAtPosition(response[5], i);
+        }
+        int QDCOUNT = bitsToInt(parsedQDCount);
+        message.setQdCount(QDCOUNT);
+        System.out.println("QDCOUNT: " + QDCOUNT);
+
+        // ANCOUNT (16 bits)
+        int[] parsedAncount = new int[16];
+        for (int i = 0; i <= 7; i++) {
+            parsedAncount[i] = getBitAtPosition(response[6], i);
+        }
+        for (int i = 0; i <= 7; i++) {
+            parsedAncount[8+i] = getBitAtPosition(response[7], i);
+        }
+        int ANCOUNT = bitsToInt(parsedAncount);
+        message.setAnCount(ANCOUNT);
+        System.out.println("ANCOUNT: " + ANCOUNT);
+
+        // NSCOUNT (16 bits)
+        int[] parsedNscount = new int[16];
+        for (int i = 0; i <= 7; i++) {
+            parsedNscount[i] = getBitAtPosition(response[8], i);
+        }
+        for (int i = 0; i <= 7; i++) {
+            parsedNscount[8+i] = getBitAtPosition(response[9], i);
+        }
+        int NSCOUNT = bitsToInt(parsedNscount);
+        message.setAnCount(NSCOUNT);
+        System.out.println("NSCOUNT: " + NSCOUNT);
+
+        // ARCOUNT (16 bits)
+        int[] parsedArcount = new int[16];
+        for (int i = 0; i <= 7; i++) {
+            parsedArcount[i] = getBitAtPosition(response[10], i);
+        }
+        for (int i = 0; i <= 7; i++) {
+            parsedArcount[8+i] = getBitAtPosition(response[11], i);
+        }
+        int ARCOUNT = bitsToInt(parsedArcount);
+        message.setAnCount(ARCOUNT);
+        System.out.println("ARCOUNT: " + ARCOUNT);
+
+        int bytePosParse = 12; // byte to start parsing variable length entries
+
+        // ------ QUESTION ------ 
+        // variable length
+
+        for (int qNum = 0; qNum < QDCOUNT; qNum++) {
+
+            // QNAME - variable length
+            String QNAME = "";
+            while (true) {
+                // QNAME length (8 bits - 1 byte)
+                int currQnameLength = response[bytePosParse];
+                bytePosParse++;
+
+                if (currQnameLength == 0) {
+                    // remove last "." if end of domain
+                    QNAME = QNAME.substring(0, QNAME.length() - 1);
+                    break; // end QNAME if null byte (00)
+                }
+
+                byte[] qNameDomainBytes = new byte[currQnameLength];
+                // QNAME domains
+                for (int currQnameOctet = 0; currQnameOctet < currQnameLength; currQnameOctet++) {
+                    qNameDomainBytes[currQnameOctet] += response[bytePosParse];
+                    bytePosParse++;
+                }
+                try {
+                    String asciiDomain = new String(qNameDomainBytes, "UTF-8");
+                    QNAME += asciiDomain + ".";
+                } catch (Exception e) {
+                    continue;
+                }
+            }
+            // TODO SET QNAME - need to refactor QNAME to support an array of questions
+            System.out.println("QNAME: " + QNAME);
+
+            // QTYPE (2 octets = 2 bytes = 16 bits)
+            byte[] parsedQtype = {response[bytePosParse], response[bytePosParse]};
+            bytePosParse += 2;
+            int QTYPE = bytesToInt(parsedQtype);
+            System.out.println("QTYPE: " + QTYPE);
+            // TODO SET QTYPE 
+
+            // QCLASS (2 octets = 2 bytes = 16 bits)
+            byte[] parsedQclass = {response[bytePosParse], response[bytePosParse]};
+            bytePosParse += 2;
+            int QCLASS = bytesToInt(parsedQclass);
+            System.out.println("QCLASS: " + QCLASS);
+            // TODO SET QCLASS 
+            
+        }
+
+        // TODO!
+        
+        // ------ ANSWER ------
+
+        // ------ AUTHORITY ------
+
+        // ------ ADDITIONAL ------
+
+        return message;
+    }
+
+    /**
+     * Utility function to print a datagram packet in bits, as formatted in RFCs. For debugging purposes.
+     */
+    private static void printDatagramPacketInBits(byte[] response) {
+        int linecount = 1; // num bytes printed, should be 2
+        for (int i = 0; i < response.length; i++) {
+            for (int j = 0; j < 8; j++) {
+                System.out.print(getBitAtPosition(response[i], j));
+            }
+            linecount++;
+            if (linecount > 2) {
+                System.out.print("\n");
+                linecount = 1;
+            }
+        }
+
+    }
+
+    /**
+     * Utiity function to convert bits to an integer.
+     */
+    private static int bitsToInt(int[] bits) {
+        int value = 0;
+        for (int i = 0; i < bits.length; i++) {
+            value += bits[i] * (int) Math.pow(2, bits.length - 1 - i);
+        }
+        return value;
+    }
+
+    /**
+     * Utility function to get a bit at a given position in a byte. 
+     * @param inputByte 
+     * @param position Position from the left (as if the bits are an array)
+     * @return int (either 1 or 0) which is the bit at the given position
+     */
+    private static int getBitAtPosition(byte inputByte, int position) {
+        //System.out.print(inputByte);
+        int pos = 7 - position; // this is because a bitwise shift
+        // starts from the right side
+        return ((inputByte >> pos) & 1);
+    }
+
+    /**
+     * Utility function to convert number of bytes to an int. Only supports 2 or 4 bytes.
+     * @param bytes byte array to convert
+     * @return int conversion of the byte array
+     */
+    private static int bytesToInt(byte[] bytes) {
+        if (bytes.length == 2) {
+            return (bytes[0] & 0xff) << 8 | (bytes[1] & 0xff);
+        } else if (bytes.length == 4) {
+            return bytes[0] << 24 | (bytes[1] & 0xff) << 16 | (bytes[2] & 0xff) << 8
+          | (bytes[3] & 0xff);
+        } else {
+            System.out.print("conversion of bytes to int not supported");
+            return 0;
+        }
+    }
+    
+    /**
+     * Utility function for printing a byte array. For debugging purposes.
+     */
+    private static void printByteArray(byte[] byteArray) {
+        for (byte b : byteArray) {
+            System.out.print(String.format("%02X", b) + " ");
+        }
+        System.out.println();
     }
 
     /**

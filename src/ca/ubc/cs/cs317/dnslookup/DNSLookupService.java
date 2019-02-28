@@ -2,6 +2,7 @@ package ca.ubc.cs.cs317.dnslookup;
 
 import java.io.Console;
 import java.net.DatagramPacket;
+import java.io.*;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
@@ -258,20 +259,72 @@ public class DNSLookupService {
             the method verbosePrintResourceRecord, provided with the code. */
 
         }
-
-
         // store response in the cache
-
-
     }
 
     /**
      * Encode a DNS query.
      */
-    private static byte[] encodeDNSQuery(DNSMessage queryMessage) {
-        // 4.2.1: UDP packets are 512 bytes
+    private static byte[] encodeDNSQuery(byte[] queryID, DNSNode node) {
+        // http://www.zytrax.com/books/dns/ch15/
+        Writer out = new BufferedWriter(new OutputStreamWriter(System.out));
+        ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
+        DNSMessage dnsQuery = new DNSMessage();
+        try {
+            // header section
+            bOutput.write(queryID);
+            // qr, qpcode, aa, tc, rd
+            bOutput.write(0);
+            bOutput.write(0);
+            // ra, z, rcode
+            bOutput.write(0);
+            bOutput.write(0);
+            // qd count
+            byte[] qdCount = new byte[2];
+            qdCount[1] = (byte) 1;
+            bOutput.write(qdCount, 4, 2);
+            // ancount, nscount, arcount
+            bOutput.write(0);
+            bOutput.write(0);
+            bOutput.write(0);
+            bOutput.write(0);
+            bOutput.write(0);
+            bOutput.write(0);
+            // question section
+            // qname
+            bOutput.write(domainToQname(node.getHostName()));
+            // qtype
+            bOutput.write(0);
+            bOutput.write(node.getType().getCode());
+            // qclass (set to 1 for IN)
+            bOutput.write(0);
+            bOutput.write(1);
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+        // TODO: maybe we don't need this
+//        // HEADER SECTION
+//        dnsQuery.setQueryId(queryID);
+//        dnsQuery.setQr(0); // specifies message is a query (1 bit)
+//        dnsQuery.setOpCode(0); // specifies standard query (4 bits)
+//        dnsQuery.setAA(0); // valid in responses, set to 0 for queries (1 bit)
+//        dnsQuery.setTC(0); // specifies if message was truncated (1 bit)
+//        dnsQuery.setRD(0); // specifies a non-recursive query (1 bit)
+//        dnsQuery.setRA(0); // recursion available (1 bit)
+//        dnsQuery.setZ(0); // set to 0 (3 bits)
+//        dnsQuery.setRCODE(0); // response code, set to 0 for queries (4 bits)
+//        dnsQuery.setQdCount(1); // 1 question entry in the query (16 bits)
+//        dnsQuery.setAnCount(0); // 16 bits
+//        dnsQuery.setNsCount(0); // 16 bits
+//        dnsQuery.setArCount(0); // 16 bits
+//        // QUESTION SECTION
+//        dnsQuery.setqName(node.getHostName()); // sets domain name
+//        dnsQuery.setqType(node.getType().getCode()); // sets the qtype (16 bits)
+//        dnsQuery.setqClass(1); // set to 1 for IN(ternet) (16 bits)
+
+        // 4.2.1: UDP packets are 512 bytes maximum
         // TODO
-        return null;
+        return bOutput.toByteArray();
     }
 
     /**
@@ -281,6 +334,26 @@ public class DNSLookupService {
         // assume response is less than 1024 bytes
         // TODO
         return null;
+    }
+
+    /**
+     * Converts the domain name to a suitable format for Qname
+     * @param hostName
+     * @return
+     */
+    private static byte[] domainToQname(String hostName) {
+        String[] splitDomain = hostName.split(".");
+        ByteArrayOutputStream dnameOutput = new ByteArrayOutputStream(splitDomain.length);
+        for (String part : splitDomain) {
+            // write the length of the label first
+            dnameOutput.write(part.length());
+            for (int index = 0; index < part.length(); index++) {
+                // convert string to hex
+                int ascii = (int) part.charAt(index);
+                dnameOutput.write(ascii);
+            }
+        }
+        return dnameOutput.toByteArray();
     }
 
     /**
@@ -295,6 +368,16 @@ public class DNSLookupService {
             generatedIDs[n] = 1; // set to used ID
             return n;
         }
+    }
+
+    /**
+     * Generate a unique query ID between 0bx0000 and 0bxFFFF
+     * @return
+     */
+    private static byte[] generateQueryIDBytes() {
+        byte[] b = new byte[2];
+        new Random().nextBytes(b);
+        return b;
     }
 
     private static void verbosePrintResourceRecord(ResourceRecord record, int rtype) {

@@ -1,6 +1,7 @@
 package ca.ubc.cs.cs317.dnslookup;
 
 import java.io.Console;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
@@ -182,17 +183,8 @@ public class DNSLookupService {
         // TODO To be completed by the student
 
         // if the DNSNode is a CNAME, have to do recursion to handle the root domain
-        /* Note that if the provided name is an alias for another name (e.g. prep.ai.mit.edu 
-        is an alias for ftp.gnu.org) then the program is to resolve the CNAME and return the 
-        IP address of the CNAME or a failure if the CNAME cannot be resolved. A CNAME may 
-        itself point to another CNAME and so-on. To avoid infinite loops when doing CNAME 
-        lookups, you may assume that if your program has issued 10 queries then the name cannot 
-        be resolved. At this point your program will report that the name was not found. Also 
-        note that when dealing with a CNAME there are two or more TTL result fields that need 
-        to be considered. For example the initial result record that reports something as a CNAME 
-        will have a particular TTL value. In addition the final address record will also have a 
-        TTL value. In this situation you are to report the TTL of the final IP address.
-         */
+        
+        // if record is a CNAME, repeat search with a new node with the canonical name
 
         // look for record in the cache; if found, return
         if (cache.getCachedResults(node).isEmpty()) {
@@ -238,8 +230,8 @@ public class DNSLookupService {
 
         }
 
-
         // send as a query datagram through socket to the server
+        DatagramPacket packet = new DatagramPacket(buf, buf.length);
 
         // receive response datagram
         int responseID = 0;
@@ -265,10 +257,9 @@ public class DNSLookupService {
             format method to achieve the formatting required when printing a resource record is found in 
             the method verbosePrintResourceRecord, provided with the code. */
 
-
         }
 
-        
+
         // store response in the cache
 
 
@@ -281,7 +272,7 @@ public class DNSLookupService {
         // 4.2.1: UDP packets are 512 bytes
         // TODO
         return null;
-    } 
+    }
 
     /**
      * Decodes a DNS response from a given byte array. Returns a query message.
@@ -297,7 +288,7 @@ public class DNSLookupService {
      */
     private static int generateQueryID() {
         int n = random.nextInt(MAX_QUERY_ID + 1);
-        
+
         if (generatedIDs[n] == 1) { // if the ID has already been generated, try again
             return generateQueryID();
         } else {

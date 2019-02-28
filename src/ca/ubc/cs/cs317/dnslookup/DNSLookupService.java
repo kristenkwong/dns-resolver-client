@@ -1,10 +1,8 @@
 package ca.ubc.cs.cs317.dnslookup;
 
 import java.io.*;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.*;
 
 public class DNSLookupService {
@@ -229,7 +227,6 @@ public class DNSLookupService {
         boolean isAuthoritative = true;
         int numResponses = 0;
 
-
         // decode response datagram
         if (verboseTracing) {
 
@@ -255,14 +252,15 @@ public class DNSLookupService {
     /**
      * Encode a DNS query.
      */
-    private static byte[] encodeDNSQuery(byte[] queryID, DNSNode node) {
+    private static byte[] encodeDNSQuery(DNSMessage dnsMessage) {
         // http://www.zytrax.com/books/dns/ch15/
-        Writer out = new BufferedWriter(new OutputStreamWriter(System.out));
         ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
         DNSMessage dnsQuery = new DNSMessage();
+        int queryid = dnsMessage.getQueryId();
         try {
             // header section
-            bOutput.write(queryID);
+            // convert query id from int to byte array TODO: check byte order
+            bOutput.write(ByteBuffer.allocate(2).putInt(queryid).array());
             // qr, qpcode, aa, tc, rd
             bOutput.write(0);
             bOutput.write(0);
@@ -282,10 +280,10 @@ public class DNSLookupService {
             bOutput.write(0);
             // question section
             // qname
-            bOutput.write(domainToQname(node.getHostName()));
+            bOutput.write(domainToQname(dnsMessage.getqName()));
             // qtype
             bOutput.write(0);
-            bOutput.write(node.getType().getCode());
+            bOutput.write(dnsMessage.getqType());
             // qclass (set to 1 for IN)
             bOutput.write(0);
             bOutput.write(1);

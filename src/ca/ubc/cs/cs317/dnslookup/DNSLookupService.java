@@ -267,10 +267,11 @@ public class DNSLookupService {
     }
 
     /**
-     * Encode a DNS query.
+     * Encodes a DNSMessage object into a byte array representing the data to be wrapped in a datagram packet.
+     * @param dnsMessage the DNSMessage object to translate
+     * @return byte array representing a dns query
      */
     private static byte[] encodeDNSQuery(DNSMessage dnsMessage) {
-        // http://www.zytrax.com/books/dns/ch15/
         ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
         int queryId = dnsMessage.getQueryId();
         try {
@@ -311,16 +312,17 @@ public class DNSLookupService {
         }
         // 4.2.1: UDP packets are 512 bytes maximum
         // TODO
-        byte[] example = bOutput.toByteArray();
-        int two = 1;
-        for (byte b : example) {
-            System.out.print(String.format("%02X ", b) + " ");
-            if (two == 2) {
-                two = 0;
-                System.out.println();
-            }
-            two++;
-        }
+        // THIS CODE BELOW IS JUST TO PRINT OUT THE ENCODED DNS QUERY - for testing only
+//        byte[] example = bOutput.toByteArray();
+//        int two = 1;
+//        for (byte b : example) {
+//            System.out.print(String.format("%02X ", b) + " ");
+//            if (two == 2) {
+//                two = 0;
+//                System.out.println();
+//            }
+//            two++;
+//        }
         return bOutput.toByteArray();
     }
 

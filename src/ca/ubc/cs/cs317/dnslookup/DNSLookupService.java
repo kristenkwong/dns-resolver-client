@@ -271,7 +271,6 @@ public class DNSLookupService {
      */
     private static byte[] encodeDNSQuery(DNSMessage dnsMessage) {
         // http://www.zytrax.com/books/dns/ch15/
-        System.out.println(dnsMessage.getqName());
         ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
         DNSMessage dnsQuery = new DNSMessage();
         int queryid = dnsMessage.getQueryId();

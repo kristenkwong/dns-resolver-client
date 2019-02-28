@@ -215,23 +215,6 @@ public class DNSLookupService {
         // encode a query with a unique ID and host name & records
         int queryID = generateQueryID();
 
-        // TESTING THE BYTE STREAM FOR CORRECTNESS
-        DNSMessage dnsMessage = new DNSMessage();
-        dnsMessage.setQueryId(queryID);
-        dnsMessage.setqName(node.getHostName());
-        dnsMessage.setqType(node.getType().getCode());
-        byte[] encodedBytes = encodeDNSQuery(dnsMessage);
-        DatagramPacket packet = new DatagramPacket(encodedBytes, encodedBytes.length, rootServer, DEFAULT_DNS_PORT);
-        try {
-            socket.send(packet);
-            byte[] receiver = new byte[1024];
-            DatagramPacket received = new DatagramPacket(receiver, receiver.length);
-            socket.receive(received);
-            System.out.println(received);
-        } catch(IOException ex) {
-            ex.printStackTrace();
-        }
-
         if (verboseTracing) {
 
             /* For each query that is sent start by printing 2 blank lines. If a query is 
@@ -246,8 +229,47 @@ public class DNSLookupService {
 
         }
 
+        // create new DNSMessage object and set fields appropriately
+        DNSMessage dnsMessage = new DNSMessage();
+        dnsMessage.setQueryId(queryID);
+        dnsMessage.setqName(node.getHostName());
+        dnsMessage.setqType(node.getType().getCode());
+
+        // encode query as a byte array to be sent through UDP socket
+        byte[] encodedBytes = encodeDNSQuery(dnsMessage);
+
         // send as a query datagram through socket to the server
-        DatagramPacket packet = new DatagramPacket(buf, buf.length);
+        DatagramPacket packet = new DatagramPacket(encodedBytes, encodedBytes.length, rootServer, DEFAULT_DNS_PORT);
+
+        try {
+            socket.send(packet);
+            socket.setSoTimeout(5000);
+            byte[] receiver = new byte[1024];
+            DatagramPacket received = new DatagramPacket(receiver, receiver.length);
+            try {
+                socket.receive(received);
+            } catch (SocketTimeoutException e) {
+                // resend the packet
+                if (verboseTracing) {
+                    System.out.print("\n\n");
+                    System.out.printf("Query ID     %d %s  %s --> %s\n", queryID, node.getHostName(), node.getType(), DNSServerAddress);
+                }
+                socket.send(packet);
+            }
+            // check received data...
+            // TODO
+            System.out.print(received);
+            
+        } catch(IOException ex) {
+            // TODO do something
+            ex.printStackTrace();
+        } 
+
+        // TODO: if no response received, resend the packet
+
+        // decode the received packet
+
+
 
         // receive response datagram
         int responseID = 0;

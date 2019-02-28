@@ -272,12 +272,11 @@ public class DNSLookupService {
     private static byte[] encodeDNSQuery(DNSMessage dnsMessage) {
         // http://www.zytrax.com/books/dns/ch15/
         ByteArrayOutputStream bOutput = new ByteArrayOutputStream();
-        DNSMessage dnsQuery = new DNSMessage();
-        int queryid = dnsMessage.getQueryId();
+        int queryId = dnsMessage.getQueryId();
         try {
             // header section
             // convert query id from int to byte array
-            byte[] intArray = ByteBuffer.allocate(4).putInt(queryid).array();
+            byte[] intArray = ByteBuffer.allocate(4).putInt(queryId).array();
             byte[] queryIdArray = new byte[2];
             queryIdArray[0] = intArray[2];
             queryIdArray[1] = intArray[3];

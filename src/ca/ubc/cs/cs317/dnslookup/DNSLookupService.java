@@ -215,21 +215,6 @@ public class DNSLookupService {
         // encode a query with a unique ID and host name & records
         int queryID = generateQueryID();
 
-        if (verboseTracing) {
-
-            /* For each query that is sent start by printing 2 blank lines. If a query is 
-            repeated because of a timeout the query is to be reprinted at the time of the timeout. 
-            Note that a resent query will have the same query ID.*/
-            System.out.print("\n\n");
-
-            /* Print the phrase "Query ID" followed by 5 spaces, then the query ID itself, a space, 
-            the name being looked up, two spaces, then the query type (e.g., A or AAAA), a space, 
-            "-->", another space and finally the IP address of the DNS server being consulted. */
-
-            System.out.printf("Query ID     %d %s  %s --> %s\n", queryID, node.getHostName(), node.getType(), DNSServerAddress);
-
-        }
-
         // create new DNSMessage object and set fields appropriately
         DNSMessage dnsMessage = new DNSMessage();
         dnsMessage.setQueryId(queryID);
@@ -240,35 +225,12 @@ public class DNSLookupService {
         byte[] encodedBytes = encodeDNSQuery(dnsMessage);
 
         // send as a query datagram through socket to the server
-        /* For testing timeout:
-        try {
-            server = InetAddress.getByName("www.google.ca");
-        } catch (Exception e) {
-            System.out.print(e);
-        } */
         DatagramPacket packet = new DatagramPacket(encodedBytes, encodedBytes.length, server, DEFAULT_DNS_PORT);
+        String queryPrintString = String.format("Query ID     %d %s  %s --> %s\n", queryID, node.getHostName(), node.getType(), DNSServerAddress);
 
-        byte[] receiver = new byte[1024];
-        DatagramPacket received = new DatagramPacket(receiver, receiver.length);
-        try {
-            socket.send(packet);
-            try {
-                socket.receive(received);
-            } catch (SocketTimeoutException e) {
-                // resend the packet
-                if (verboseTracing) {
-                    System.out.print("\n\n");
-                    System.out.printf("Query ID     %d %s  %s --> %s\n", queryID, node.getHostName(), node.getType(), DNSServerAddress);
-                }
-                socket.send(packet);
-            }
-            // check received response to see if it's valid
-            // TODO
-            
-        } catch(IOException ex) {
-            // TODO do something
-            ex.printStackTrace();
-        }
+        DatagramPacket received = sendPacket(packet, queryPrintString);
+        if (received == null)
+            return;
 
         // decode the received packet
         DNSMessage response = decodeDNSQuery(received.getData());
@@ -297,6 +259,53 @@ public class DNSLookupService {
 
         }
         // store response in the cache
+    }
+    
+    /**
+     * Send DNS query.
+     */
+    private static DatagramPacket sendPacket(DatagramPacket packet, String queryPrintString) {
+
+        //For testing timeout:
+        try {
+            InetAddress server = InetAddress.getByName("www.google.ca");
+            packet.setAddress(server);
+        } catch (Exception e) {
+            System.out.print(e);
+        }
+
+        byte[] receiver = new byte[1024];
+        DatagramPacket received = new DatagramPacket(receiver, receiver.length);
+        try {
+            if (verboseTracing) {
+                System.out.print("\n\n");
+                System.out.printf(queryPrintString);
+            }
+            socket.send(packet);
+            try {
+                socket.receive(received);
+            } catch (SocketTimeoutException e) {
+                // resend the packet
+                if (verboseTracing) {
+                    System.out.print("\n\n");
+                    System.out.printf(queryPrintString);
+                }
+                // packet.setAddress(rootServer); // for testing timeout (2nd time work)
+                socket.send(packet);
+                try {
+                    socket.receive(received);
+                } catch (Exception ex) {
+                    // second attempt failed, just return -1
+                    return null;
+                }
+            }
+            
+        } catch(IOException ex) {
+            // TODO do something for IO?
+            // ex.printStackTrace();
+            return null;
+        }
+        return received;
     }
 
     /**
@@ -523,7 +532,7 @@ public class DNSLookupService {
         }
 
         // TODO!
-        
+
         // ------ ANSWER ------
 
         // ------ AUTHORITY ------

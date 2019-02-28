@@ -1,5 +1,7 @@
 package ca.ubc.cs.cs317.dnslookup;
 
+import java.util.ArrayList;
+
 /**
  * This class represents a DNS query/response.
  */
@@ -23,6 +25,11 @@ public class DNSMessage {
     private int RD; // indicates if query wants the name server to answer
     // the question by initiating recursive query (1 bit)
 
+    // These are variable number of resource records.
+    ArrayList<ResourceRecord> answer;
+    ArrayList<ResourceRecord> authority;
+    ArrayList<ResourceRecord> additional;
+
     public DNSMessage() {
         this.RA = 0;
         this.Z = 0;
@@ -40,7 +47,15 @@ public class DNSMessage {
         this.AA = 0;
         this.TC = 0;
         this.RD = 0;
+        this.answer = new ArrayList<ResourceRecord>();
+        this.authority = new ArrayList<ResourceRecord>();
+        this.additional = new ArrayList<ResourceRecord>();
     }
+
+    public void addAnswer(ResourceRecord record) {
+
+    }
+
     public int getRA() {
         return RA;
     }

@@ -281,10 +281,7 @@ public class DNSLookupService {
             queryIdArray[0] = intArray[2];
             queryIdArray[1] = intArray[3];
             bOutput.write(queryIdArray);
-            // qr, qpcode, aa, tc, rd
-            bOutput.write(0);
-            bOutput.write(0);
-            // ra, z, rcode
+            // qr, qpcode, aa, tc, rd, ra, z, rcode
             bOutput.write(0);
             bOutput.write(0);
             // qd count
@@ -294,8 +291,10 @@ public class DNSLookupService {
             // ancount, nscount, arcount
             bOutput.write(0);
             bOutput.write(0);
+
             bOutput.write(0);
             bOutput.write(0);
+
             bOutput.write(0);
             bOutput.write(0);
             // question section
@@ -313,8 +312,14 @@ public class DNSLookupService {
         // 4.2.1: UDP packets are 512 bytes maximum
         // TODO
         byte[] example = bOutput.toByteArray();
+        int two = 1;
         for (byte b : example) {
             System.out.print(String.format("%02X ", b) + " ");
+            if (two == 2) {
+                two = 0;
+                System.out.println();
+            }
+            two++;
         }
         return bOutput.toByteArray();
     }

@@ -11,9 +11,6 @@ public class DNSMessage {
     private int Z; // reserved for future use - keep at 0 (3 bits)
     private int RCODE; // response code (4 bits)
     private int queryId; // query id (16 bits)
-    private int qClass; // a two octet code that specifies the class of the query (16 bits)
-    private int qType; // a two octet code which specifies the type of the query (16 bits)
-    private String qName; // represents the domain name
     private int qdCount; // query count
     private int anCount; // answer count
     private int nsCount; // name server records count
@@ -25,19 +22,19 @@ public class DNSMessage {
     private int RD; // indicates if query wants the name server to answer
     // the question by initiating recursive query (1 bit)
 
+    // Variable number (qdCount) of Question records per DNS Message.
+    ArrayList<DNSQuestionEntry> questions;
+    
     // These are variable number of resource records.
-    ArrayList<ResourceRecord> answer;
-    ArrayList<ResourceRecord> authority;
-    ArrayList<ResourceRecord> additional;
+    ArrayList<ResourceRecord> answerRRs;
+    ArrayList<ResourceRecord> authorityRRs;
+    ArrayList<ResourceRecord> additionalRRs;
 
     public DNSMessage() {
         this.RA = 0;
         this.Z = 0;
         this.RCODE = 0;
         this.queryId = 0;
-        this.qClass = 0;
-        this.qType = 0;
-        this.qName = "";
         this.qdCount = 0;
         this.anCount = 0;
         this.nsCount = 0;
@@ -47,13 +44,42 @@ public class DNSMessage {
         this.AA = 0;
         this.TC = 0;
         this.RD = 0;
-        this.answer = new ArrayList<ResourceRecord>();
-        this.authority = new ArrayList<ResourceRecord>();
-        this.additional = new ArrayList<ResourceRecord>();
+        this.questions = new ArrayList<DNSQuestionEntry>();
+        this.answerRRs = new ArrayList<ResourceRecord>();
+        this.authorityRRs = new ArrayList<ResourceRecord>();
+        this.additionalRRs = new ArrayList<ResourceRecord>();
     }
 
-    public void addAnswer(ResourceRecord record) {
+    public void addQuestion(DNSQuestionEntry question) {
+        this.questions.add(question);
+    }
 
+    public ArrayList<DNSQuestionEntry> getQuestions() {
+        return this.questions;
+    }
+
+    public void addAnswerRR(ResourceRecord record) {
+        this.answerRRs.add(record);
+    }
+
+    public ArrayList<ResourceRecord> getAnswerRRs() {
+        return this.answerRRs;
+    }
+
+    public void addAuthorityRR(ResourceRecord record) {
+        this.authorityRRs.add(record);
+    }
+
+    public ArrayList<ResourceRecord> getAuthorityRRs() {
+        return this.authorityRRs;
+    }
+
+    public void addAdditionalRR(ResourceRecord record) {
+        this.additionalRRs.add(record);
+    }
+
+    public ArrayList<ResourceRecord> getAdditionalRRs() {
+        return this.additionalRRs;
     }
 
     public int getRA() {
@@ -86,30 +112,6 @@ public class DNSMessage {
 
     public void setQueryId(int queryId) {
         this.queryId = queryId;
-    }
-
-    public int getqClass() {
-        return qClass;
-    }
-
-    public void setqClass(int qClass) {
-        this.qClass = qClass;
-    }
-
-    public int getqType() {
-        return qType;
-    }
-
-    public void setqType(int qType) {
-        this.qType = qType;
-    }
-
-    public String getqName() {
-        return qName;
-    }
-
-    public void setqName(String qName) {
-        this.qName = qName;
     }
 
     public int getQdCount() {

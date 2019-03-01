@@ -217,9 +217,9 @@ public class DNSLookupService {
 
         // create new DNSMessage object and set fields appropriately
         DNSMessage dnsMessage = new DNSMessage();
+        DNSQuestionEntry question = new DNSQuestionEntry(node.getHostName(), node.getType().getCode(), 1);
+        dnsMessage.addQuestion(question);
         dnsMessage.setQueryId(queryID);
-        dnsMessage.setqName(node.getHostName());
-        dnsMessage.setqType(node.getType().getCode());
 
         // encode query as a byte array to be sent through UDP socket
         byte[] encodedBytes = encodeDNSQuery(dnsMessage);
@@ -229,7 +229,8 @@ public class DNSLookupService {
         String queryPrintString = String.format("Query ID     %d %s  %s --> %s\n", queryID, node.getHostName(), node.getType(), DNSServerAddress);
 
         DatagramPacket received = sendPacket(packet, queryPrintString);
-        if (received == null)
+
+        if (received == null) // no packet received, break and print -1
             return;
 
         // decode the received packet
@@ -242,9 +243,6 @@ public class DNSLookupService {
         // decode response datagram
         if (verboseTracing) {
 
-            /* The next line is the the phrase "Response ID:", a space, the ID of the response, a space, 
-            the word Authoritative, a space, an equal sign, another space, and the word true or false to 
-            indicate if this response is authoritative or not. */
             System.out.printf("Response ID: %d Authoritative = %b\n", response.getQueryId(), isAuthoritative);
 
             /* The next line consists of 2 spaces, the word Answers, followed by a space and the number 
@@ -267,12 +265,12 @@ public class DNSLookupService {
     private static DatagramPacket sendPacket(DatagramPacket packet, String queryPrintString) {
 
         //For testing timeout:
-        try {
+        /* try {
             InetAddress server = InetAddress.getByName("www.google.ca");
             packet.setAddress(server);
         } catch (Exception e) {
             System.out.print(e);
-        }
+        } */
 
         byte[] receiver = new byte[1024];
         DatagramPacket received = new DatagramPacket(receiver, receiver.length);
@@ -341,14 +339,20 @@ public class DNSLookupService {
             bOutput.write(0);
             bOutput.write(0);
             // question section
-            // qname
-            bOutput.write(domainToQname(dnsMessage.getqName()));
-            // qtype
-            bOutput.write(0);
-            bOutput.write(dnsMessage.getqType());
-            // qclass (set to 1 for IN)
-            bOutput.write(0);
-            bOutput.write(1);
+            for (int i = 0; i < dnsMessage.getQuestions().size(); i++) {
+                // qname
+                bOutput.write(domainToQname(dnsMessage.getQuestions().get(i).getQname()));
+                // qtype
+                bOutput.write(0);
+                bOutput.write(dnsMessage.getQuestions().get(i).getQtype());
+                // qclass (set to 1 for IN)
+                bOutput.write(0);
+                bOutput.write(1);
+            }
+            
+            //printDatagramPacketInBits(bOutput.toByteArray());
+            decodeDNSQuery(bOutput.toByteArray());
+
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
@@ -528,12 +532,23 @@ public class DNSLookupService {
             int QCLASS = bytesToInt(parsedQclass);
             System.out.println("QCLASS: " + QCLASS);
             // TODO SET QCLASS 
+
+            DNSQuestionEntry question = new DNSQuestionEntry(QNAME, QTYPE, QCLASS);
+            message.addQuestion(question);
             
         }
 
         // TODO!
 
         // ------ ANSWER ------
+        ResourceRecord[] records = new ResourceRecord[3];
+        // records[0] = array of answer RRs
+        // records[1] = array of authority RRs
+        // records[2] = array of additional RRs
+        for (int anNum = 0; anNum < ANCOUNT; anNum++) {
+            int answerLength = 0;
+            // ResourceRecord answer = getResourceRecord(Arrays.copyOfRange(response, bytePosParse, bytePosParse + answerLength));
+        }
 
         // ------ AUTHORITY ------
 

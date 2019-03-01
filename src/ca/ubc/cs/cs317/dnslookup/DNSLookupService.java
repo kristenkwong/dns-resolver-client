@@ -181,21 +181,26 @@ public class DNSLookupService {
 
         // TODO To be completed by the student
 
-        // if the DNSNode is a CNAME, have to do recursion to handle the root domain
-        
-        // if record is a CNAME, repeat search with a new node with the canonical name
+        // if it's looking for a CNAME
+        if (!cache.getCachedResults(node).isEmpty() && node.getType() == RecordType.CNAME) {
+            return cache.getCachedResults(node);
+        }
 
         // look for record in the cache; if found, return
         if (cache.getCachedResults(node).isEmpty()) {
-
             // if not in cache, retrieve result from root server
-
-            // check in cache for the result (retrieveResultsFromServer doesn't return, only caches)
             retrieveResultsFromServer(node, rootServer);
 
         }
 
-        // return the 
+        // if the DNSNode is a CNAME, have to do recursion to handle the root domain
+        if (node.getType() != RecordType.CNAME) {
+            
+        }
+        
+        // if record is a CNAME, repeat search with a new node with the canonical name
+
+        // check in cache for the result and return (retrieveResultsFromServer doesn't return, only caches)
         return cache.getCachedResults(node);
     }
 
@@ -323,7 +328,7 @@ public class DNSLookupService {
             queryIdArray[1] = intArray[3];
             bOutput.write(queryIdArray);
             // qr, qpcode, aa, tc, rd, ra, z, rcode
-            bOutput.write(0);
+            bOutput.write(1);
             bOutput.write(0);
             // qd count
             byte[] qdCount = new byte[2];
@@ -349,18 +354,12 @@ public class DNSLookupService {
                 bOutput.write(0);
                 bOutput.write(1);
             }
-            
-            //printDatagramPacketInBits(bOutput.toByteArray());
-            decodeDNSQuery(bOutput.toByteArray());
 
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
-        // 4.2.1: UDP packets are 512 bytes maximum
-        // TODO
         // THIS CODE BELOW IS JUST TO PRINT OUT THE ENCODED DNS QUERY - for testing only
-//        byte[] example = bOutput.toByteArray();
-//        printByteArray(example);
+        // decodeDNSQuery(bOutput.toByteArray());
         return bOutput.toByteArray();
     }
 
@@ -371,8 +370,9 @@ public class DNSLookupService {
         // assume response is less than 1024 bytes
         // TODO
 
+        // DEBUGGING:
         // printByteArray(response);
-        printDatagramPacketInBits(response);
+        // printDatagramPacketInBits(response);
 
         DNSMessage message = new DNSMessage();
 
@@ -541,20 +541,368 @@ public class DNSLookupService {
         // TODO!
 
         // ------ ANSWER ------
-        ResourceRecord[] records = new ResourceRecord[3];
-        // records[0] = array of answer RRs
-        // records[1] = array of authority RRs
-        // records[2] = array of additional RRs
-        for (int anNum = 0; anNum < ANCOUNT; anNum++) {
-            int answerLength = 0;
-            // ResourceRecord answer = getResourceRecord(Arrays.copyOfRange(response, bytePosParse, bytePosParse + answerLength));
-        }
 
+        for (int ansNum = 0; ansNum < ANCOUNT; ansNum++) {
+
+            System.out.println("----- ANSWER #" + ansNum);
+
+            // NAME - variable length
+            String NAME = "";
+            while (true) {
+
+                // NAME length (8 bits - 1 byte)
+                if (getBitAtPosition(response[bytePosParse], 0) == 1 && getBitAtPosition(response[bytePosParse], 1) == 1) {
+                    // domain name is a pointer
+                    int[] tempOffset = new int[14]; // bits to convert to offset
+                    for (int i = 2; i <= 7; i++) {
+                        tempOffset[i-2] = getBitAtPosition(response[bytePosParse], i);
+                    }
+                    bytePosParse++;
+                    for (int i = 0; i <= 7; i++) {
+                        tempOffset[i+6] = getBitAtPosition(response[bytePosParse], i);
+                    }
+                    bytePosParse++;
+                    int offset = bitsToInt(tempOffset);
+                    System.out.println("offset: " + offset);
+    
+                    NAME += getDomainAt(response, offset);
+
+                } else {
+                    int currNameLength = response[bytePosParse];
+
+                    if (currNameLength == 0) {
+                        // remove last "." if end of domain
+                        if (NAME.substring(NAME.length() - 1) == ".") {
+                            NAME = NAME.substring(0, NAME.length() - 1);
+                        } 
+                        break; // end QNAME if null byte (00)
+                    }
+
+                    bytePosParse++;
+
+                    byte[] qNameDomainBytes = new byte[bytePosParse];
+                    // QNAME domains
+                    for (int currQnameOctet = 0; currQnameOctet < currNameLength; currQnameOctet++) {
+                        qNameDomainBytes[currQnameOctet] += response[bytePosParse];
+                        bytePosParse++;
+                    }
+                    try {
+                        String asciiDomain = new String(qNameDomainBytes, "UTF-8");
+                        NAME += asciiDomain + ".";
+                    } catch (Exception e) {
+                        continue;
+                    }
+                }
+            }
+            System.out.println("NAME: " + NAME);
+
+            // TYPE 
+            byte[] typeBytes = {response[bytePosParse], response[bytePosParse + 1]};
+            bytePosParse += 2;
+            RecordType TYPE;
+            TYPE = RecordType.getByCode(bytesToInt(typeBytes));
+            System.out.println("TYPE: " + TYPE.getCode());
+
+            // CLASS
+            byte[] classBytes = {response[bytePosParse], response[bytePosParse + 1]};
+            bytePosParse += 2;
+            int CLASS = bytesToInt(classBytes);
+            System.out.println("CLASS: " + CLASS);
+
+            // TTL (32-bit; 4 bytes)
+            byte[] ttlBytes = new byte[4];
+            for (int i = 0; i < 4; i++) {
+                ttlBytes[i] = response[bytePosParse];
+                bytePosParse++;
+            }
+            int TTL = bytesToInt(ttlBytes);
+            System.out.println("TTL: " + TTL);
+
+            // RDLENGTH (16-bit, 2 bytes)
+            byte[] rdlengthBytes = {response[bytePosParse], response[bytePosParse + 1]};
+            bytePosParse += 2;
+            int RDLENGTH = bytesToInt(rdlengthBytes);
+            System.out.println("RDLENGTH: " + RDLENGTH);
+
+            // RDATA
+            byte[] rdataBytes = new byte[RDLENGTH];
+            for (int i = 0; i < RDLENGTH; i++) {
+                rdataBytes[i] = response[bytePosParse];
+                bytePosParse++;
+            }
+            String RDATA = "";
+            try {
+                RDATA = new String(rdataBytes, "UTF-8");
+            } catch (UnsupportedEncodingException ex) {
+                System.out.println(ex);
+            }
+            
+            System.out.println("RDATA: " + RDATA);
+            ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
+            message.addAnswerRR(record);
+        }
+        
         // ------ AUTHORITY ------
+
+        for (int ansNum = 0; ansNum < NSCOUNT; ansNum++) {
+
+            System.out.println("----- AUTHORITY #" + ansNum);
+
+            // NAME - variable length
+            String NAME = "";
+
+            while (true) {
+
+                // NAME length (8 bits - 1 byte)
+                if (getBitAtPosition(response[bytePosParse], 0) == 1 && getBitAtPosition(response[bytePosParse], 1) == 1) {
+                    // domain name is a pointer
+                    int[] tempOffset = new int[14]; // bits to convert to offset
+                    for (int i = 2; i <= 7; i++) {
+                        tempOffset[i-2] = getBitAtPosition(response[bytePosParse], i);
+                    }
+                    bytePosParse++;
+                    for (int i = 0; i <= 7; i++) {
+                        tempOffset[i+6] = getBitAtPosition(response[bytePosParse], i);
+                    }
+                    bytePosParse++;
+                    int offset = bitsToInt(tempOffset);
+                    System.out.println("offset: " + offset);
+    
+                    NAME += getDomainAt(response, offset);
+
+                } else {
+                    int currNameLength = response[bytePosParse];
+
+                    if (currNameLength == 0) {
+                        // remove last "." if end of domain
+                        if (NAME.substring(NAME.length() - 1) == ".") {
+                            NAME = NAME.substring(0, NAME.length() - 1);
+                        } 
+                        break; // end QNAME if null byte (00)
+                    }
+
+                    bytePosParse++;
+
+                    byte[] qNameDomainBytes = new byte[bytePosParse];
+                    // QNAME domains
+                    for (int currQnameOctet = 0; currQnameOctet < currNameLength; currQnameOctet++) {
+                        qNameDomainBytes[currQnameOctet] += response[bytePosParse];
+                        bytePosParse++;
+                    }
+                    try {
+                        String asciiDomain = new String(qNameDomainBytes, "UTF-8");
+                        NAME += asciiDomain + ".";
+                    } catch (Exception e) {
+                        continue;
+                    }
+                }
+            }
+            System.out.println("NAME: " + NAME);
+
+            // TYPE 
+            byte[] typeBytes = {response[bytePosParse], response[bytePosParse + 1]};
+            bytePosParse += 2;
+            RecordType TYPE;
+            TYPE = RecordType.getByCode(bytesToInt(typeBytes));
+            System.out.println("TYPE: " + TYPE.getCode());
+
+            // CLASS
+            byte[] classBytes = {response[bytePosParse], response[bytePosParse + 1]};
+            bytePosParse += 2;
+            int CLASS = bytesToInt(classBytes);
+            System.out.println("CLASS: " + CLASS);
+
+            // TTL (32-bit; 4 bytes)
+            byte[] ttlBytes = new byte[4];
+            for (int i = 0; i < 4; i++) {
+                ttlBytes[i] = response[bytePosParse];
+                bytePosParse++;
+            }
+            int TTL = bytesToInt(ttlBytes);
+            System.out.println("TTL: " + TTL);
+
+            // RDLENGTH (16-bit, 2 bytes)
+            byte[] rdlengthBytes = {response[bytePosParse], response[bytePosParse + 1]};
+            bytePosParse += 2;
+            int RDLENGTH = bytesToInt(rdlengthBytes);
+            System.out.println("RDLENGTH: " + RDLENGTH);
+
+            // RDATA
+            byte[] rdataBytes = new byte[RDLENGTH];
+            for (int i = 0; i < RDLENGTH; i++) {
+                rdataBytes[i] = response[bytePosParse];
+                bytePosParse++;
+            }
+            String RDATA = "";
+            try {
+                RDATA = new String(rdataBytes, "UTF-8");
+            } catch (UnsupportedEncodingException ex) {
+                System.out.println(ex);
+            }
+            
+            System.out.println("RDATA: " + RDATA);
+            ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
+            message.addAuthorityRR(record);
+        }
 
         // ------ ADDITIONAL ------
 
+        for (int ansNum = 0; ansNum < ARCOUNT; ansNum++) {
+
+            System.out.println("----- ADDITIONAL #" + ansNum);
+
+            // NAME - variable length
+            String NAME = "";
+
+            while (true) {
+
+                // NAME length (8 bits - 1 byte)
+                if (getBitAtPosition(response[bytePosParse], 0) == 1 && getBitAtPosition(response[bytePosParse], 1) == 1) {
+                    // domain name is a pointer
+                    int[] tempOffset = new int[14]; // bits to convert to offset
+                    for (int i = 2; i <= 7; i++) {
+                        tempOffset[i-2] = getBitAtPosition(response[bytePosParse], i);
+                    }
+                    bytePosParse++;
+                    for (int i = 0; i <= 7; i++) {
+                        tempOffset[i+6] = getBitAtPosition(response[bytePosParse], i);
+                    }
+                    bytePosParse++;
+                    int offset = bitsToInt(tempOffset);
+                    System.out.println("offset: " + offset);
+    
+                    NAME += getDomainAt(response, offset);
+
+                } else {
+                    int currNameLength = response[bytePosParse];
+
+                    if (currNameLength == 0) {
+                        // remove last "." if end of domain
+                        if (NAME.substring(NAME.length() - 1) == ".") {
+                            NAME = NAME.substring(0, NAME.length() - 1);
+                        } 
+                        break; // end QNAME if null byte (00)
+                    }
+
+                    bytePosParse++;
+
+                    byte[] qNameDomainBytes = new byte[bytePosParse];
+                    // QNAME domains
+                    for (int currQnameOctet = 0; currQnameOctet < currNameLength; currQnameOctet++) {
+                        qNameDomainBytes[currQnameOctet] += response[bytePosParse];
+                        bytePosParse++;
+                    }
+                    try {
+                        String asciiDomain = new String(qNameDomainBytes, "UTF-8");
+                        NAME += asciiDomain + ".";
+                    } catch (Exception e) {
+                        continue;
+                    }
+                }
+            }
+            System.out.println("NAME: " + NAME);
+
+            // TYPE 
+            byte[] typeBytes = {response[bytePosParse], response[bytePosParse + 1]};
+            bytePosParse += 2;
+            RecordType TYPE;
+            TYPE = RecordType.getByCode(bytesToInt(typeBytes));
+            System.out.println("TYPE: " + TYPE.getCode());
+
+            // CLASS
+            byte[] classBytes = {response[bytePosParse], response[bytePosParse + 1]};
+            bytePosParse += 2;
+            int CLASS = bytesToInt(classBytes);
+            System.out.println("CLASS: " + CLASS);
+
+            // TTL (32-bit; 4 bytes)
+            byte[] ttlBytes = new byte[4];
+            for (int i = 0; i < 4; i++) {
+                ttlBytes[i] = response[bytePosParse];
+                bytePosParse++;
+            }
+            int TTL = bytesToInt(ttlBytes);
+            System.out.println("TTL: " + TTL);
+
+            // RDLENGTH (16-bit, 2 bytes)
+            byte[] rdlengthBytes = {response[bytePosParse], response[bytePosParse + 1]};
+            bytePosParse += 2;
+            int RDLENGTH = bytesToInt(rdlengthBytes);
+            System.out.println("RDLENGTH: " + RDLENGTH);
+
+            // RDATA
+            byte[] rdataBytes = new byte[RDLENGTH];
+            for (int i = 0; i < RDLENGTH; i++) {
+                rdataBytes[i] = response[bytePosParse];
+                bytePosParse++;
+            }
+            String RDATA = "";
+            try {
+                RDATA = new String(rdataBytes, "UTF-8");
+            } catch (UnsupportedEncodingException ex) {
+                System.out.println(ex);
+            }
+        
+            ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
+            message.addAdditionalRR(record);
+        }
+
         return message;
+    }
+
+    private static String getDomainAt(byte[] response, int position) {
+        // for resolving message compression pointers
+
+        // NAME length (8 bits - 1 byte)
+        String NAME = "";
+
+        while (true) {
+
+            int currNameLength = response[position] & 0xFF;
+            if (currNameLength == 0) {
+                break;
+            }
+
+            if (getBitAtPosition(response[position], 0) == 1 && getBitAtPosition(response[position], 1) == 1) {
+                // domain name is a pointer
+                int[] tempOffset = new int[14]; // bits to convert to offset
+                for (int i = 2; i <= 7; i++) {
+                    tempOffset[i-2] = getBitAtPosition(response[position], i);
+                }
+                position++;
+                for (int i = 0; i <= 7; i++) {
+                    tempOffset[i+6] = getBitAtPosition(response[position], i);
+                }
+                position++;
+                int offset = bitsToInt(tempOffset);
+                System.out.println("offset: " + offset);
+    
+                NAME += getDomainAt(response, offset);
+                break;
+    
+            } else {
+                position++;
+    
+                byte[] qNameDomainBytes = new byte[currNameLength];
+                // QNAME domains
+                for (int currQnameOctet = 0; currQnameOctet < currNameLength; currQnameOctet++) {
+                    qNameDomainBytes[currQnameOctet] += response[position];
+                    position++;
+                }
+                try {
+                    String asciiDomain = new String(qNameDomainBytes, "UTF-8");
+                    NAME += asciiDomain + ".";
+                } catch (Exception e) {
+                    continue;
+                }
+            }
+
+        }
+
+        if (NAME.substring(NAME.length() - 1).equals(".")) {
+            NAME = NAME.substring(0, NAME.length() - 1);
+        } 
+        return NAME; // end QNAME if null byte (00)
     }
 
     /**

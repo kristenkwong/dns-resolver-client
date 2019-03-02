@@ -590,7 +590,7 @@ public class DNSLookupService {
             try {
                 if (TYPE == RecordType.A || TYPE == RecordType.AAAA) {
                     RDATA = convertAddressRecordData(rdataBytes, TYPE);
-                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS){
+                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS) {
                     RDATA = getDomainAt(response, bytePosParse - RDLENGTH, false);
                 }
             } catch (UnsupportedEncodingException ex) {
@@ -651,7 +651,7 @@ public class DNSLookupService {
             try {
                 if (TYPE == RecordType.A || TYPE == RecordType.AAAA) {
                     RDATA = convertAddressRecordData(rdataBytes, TYPE);
-                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS){
+                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS) {
                     RDATA = getDomainAt(response, bytePosParse - RDLENGTH, false);
                 }
             } catch (UnsupportedEncodingException ex) {
@@ -712,7 +712,7 @@ public class DNSLookupService {
             try {
                 if (TYPE == RecordType.A || TYPE == RecordType.AAAA) {
                     RDATA = convertAddressRecordData(rdataBytes, TYPE);
-                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS){
+                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS) {
                     RDATA = getDomainAt(response, bytePosParse - RDLENGTH, false);
                 }
             } catch (UnsupportedEncodingException ex) {
@@ -730,6 +730,7 @@ public class DNSLookupService {
 
     /**
      * Return an IP Address as a string depending on the RR type
+     *
      * @param data array of bytes to convert
      * @param type resource record type
      * @return correct string representation (i.e. IPv4 Address for type A in dotted decimal notation)
@@ -749,6 +750,7 @@ public class DNSLookupService {
 
     /**
      * Converts an array of bytes into an IPv4 address
+     *
      * @param data array of bytes to convert
      * @return IPv4 address as a String
      */
@@ -764,6 +766,7 @@ public class DNSLookupService {
 
     /**
      * Converts an array of bytes into an IPv6 address
+     *
      * @param data array of bytes to convert
      * @return IPv6 address as a String
      */
@@ -783,6 +786,22 @@ public class DNSLookupService {
         int addressLength = ipAddress.toString().length();
         return ipAddress.toString().substring(0, addressLength - 1);
     }
+
+    // TODO: ignore this method for now
+//    private static String trimZeroes(String hexDigit) {
+//        String[] hexArray = hexDigit.split("");
+//        boolean allZeroes = true;
+//        for (String digit : hexArray) {
+//            if (!digit.equals("0")) {
+//                allZeroes = false;
+//                break;
+//            }
+//        }
+//        if (allZeroes) {
+//            return "0";
+//        }
+//        return hexDigit;
+//    }
 
     private static String getDomainAt(byte[] response, int position, boolean incPos) {
         // for resolving message compression pointers

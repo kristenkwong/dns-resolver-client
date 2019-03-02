@@ -197,9 +197,9 @@ public class DNSLookupService {
 
         // if the DNSNode is a CNAME, have to do recursion to handle the root domain
         if (node.getType() != RecordType.CNAME) {
-            
+
         }
-        
+
         // if record is a CNAME, repeat search with a new node with the canonical name
 
         // check in cache for the result and return (retrieveResultsFromServer doesn't return, only caches)
@@ -265,7 +265,7 @@ public class DNSLookupService {
         }
         // store response in the cache
     }
-    
+
     /**
      * Send DNS query.
      */
@@ -304,8 +304,8 @@ public class DNSLookupService {
                     return null;
                 }
             }
-            
-        } catch(IOException ex) {
+
+        } catch (IOException ex) {
             // TODO do something for IO?
             // ex.printStackTrace();
             return null;
@@ -315,6 +315,7 @@ public class DNSLookupService {
 
     /**
      * Encodes a DNSMessage object into a byte array representing the data to be wrapped in a datagram packet.
+     *
      * @param dnsMessage the DNSMessage object to translate
      * @return byte array representing a dns query
      */
@@ -379,7 +380,7 @@ public class DNSLookupService {
         DNSMessage message = new DNSMessage();
 
         // ------ HEADER ------ 
-        
+
         // ID (16 bits - 2 bytes)
         byte[] parsedId = {response[0], response[1]};
         int queryId = bytesToInt(parsedId);
@@ -393,7 +394,7 @@ public class DNSLookupService {
         // OPCODE (4 bits)
         int[] parsedOpcode = new int[4];
         for (int i = 1; i <= 4; i++) {
-            parsedOpcode[i-1] = getBitAtPosition(response[2], i);
+            parsedOpcode[i - 1] = getBitAtPosition(response[2], i);
         }
         int OPCODE = bitsToInt(parsedOpcode);
         message.setOpCode(OPCODE);
@@ -422,7 +423,7 @@ public class DNSLookupService {
         // Z (3 bits)
         int[] parsedZ = new int[4];
         for (int i = 1; i <= 3; i++) {
-            parsedZ[i-1] = getBitAtPosition(response[3], i);
+            parsedZ[i - 1] = getBitAtPosition(response[3], i);
         }
         int Z = bitsToInt(parsedZ);
         message.setZ(Z);
@@ -431,7 +432,7 @@ public class DNSLookupService {
         // RCODE (4 bits)
         int[] parsedRcode = new int[4];
         for (int i = 1; i <= 3; i++) {
-            parsedRcode[i-1] = getBitAtPosition(response[3], i);
+            parsedRcode[i - 1] = getBitAtPosition(response[3], i);
         }
         int RCODE = bitsToInt(parsedRcode);
         message.setRCODE(RCODE);
@@ -443,7 +444,7 @@ public class DNSLookupService {
             parsedQDCount[i] = getBitAtPosition(response[4], i);
         }
         for (int i = 0; i <= 7; i++) {
-            parsedQDCount[8+i] = getBitAtPosition(response[5], i);
+            parsedQDCount[8 + i] = getBitAtPosition(response[5], i);
         }
         int QDCOUNT = bitsToInt(parsedQDCount);
         message.setQdCount(QDCOUNT);
@@ -455,7 +456,7 @@ public class DNSLookupService {
             parsedAncount[i] = getBitAtPosition(response[6], i);
         }
         for (int i = 0; i <= 7; i++) {
-            parsedAncount[8+i] = getBitAtPosition(response[7], i);
+            parsedAncount[8 + i] = getBitAtPosition(response[7], i);
         }
         int ANCOUNT = bitsToInt(parsedAncount);
         message.setAnCount(ANCOUNT);
@@ -467,7 +468,7 @@ public class DNSLookupService {
             parsedNscount[i] = getBitAtPosition(response[8], i);
         }
         for (int i = 0; i <= 7; i++) {
-            parsedNscount[8+i] = getBitAtPosition(response[9], i);
+            parsedNscount[8 + i] = getBitAtPosition(response[9], i);
         }
         int NSCOUNT = bitsToInt(parsedNscount);
         message.setAnCount(NSCOUNT);
@@ -479,7 +480,7 @@ public class DNSLookupService {
             parsedArcount[i] = getBitAtPosition(response[10], i);
         }
         for (int i = 0; i <= 7; i++) {
-            parsedArcount[8+i] = getBitAtPosition(response[11], i);
+            parsedArcount[8 + i] = getBitAtPosition(response[11], i);
         }
         int ARCOUNT = bitsToInt(parsedArcount);
         message.setAnCount(ARCOUNT);
@@ -537,7 +538,6 @@ public class DNSLookupService {
 
             DNSQuestionEntry question = new DNSQuestionEntry(QNAME, QTYPE, QCLASS);
             message.addQuestion(question);
-            
         }
 
         // TODO!
@@ -592,12 +592,13 @@ public class DNSLookupService {
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
-            
+
             System.out.println("RDATA: " + RDATA);
             ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
             message.addAnswerRR(record);
+            cache.addResult(record);
         }
-        
+
         // ------ AUTHORITY ------
 
         for (int ansNum = 0; ansNum < NSCOUNT; ansNum++) {
@@ -648,10 +649,11 @@ public class DNSLookupService {
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
-            
+
             System.out.println("RDATA: " + RDATA);
             ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
             message.addAuthorityRR(record);
+            cache.addResult(record);
         }
 
         // ------ ADDITIONAL ------
@@ -704,11 +706,11 @@ public class DNSLookupService {
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
-        
+
             ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
             message.addAdditionalRR(record);
+            cache.addResult(record);
         }
-
         return message;
     }
 
@@ -729,11 +731,11 @@ public class DNSLookupService {
                 // domain name is a pointer
                 int[] tempOffset = new int[14]; // bits to convert to offset
                 for (int i = 2; i <= 7; i++) {
-                    tempOffset[i-2] = getBitAtPosition(response[position], i);
+                    tempOffset[i - 2] = getBitAtPosition(response[position], i);
                 }
                 position++;
                 for (int i = 0; i <= 7; i++) {
-                    tempOffset[i+6] = getBitAtPosition(response[position], i);
+                    tempOffset[i + 6] = getBitAtPosition(response[position], i);
                 }
                 position++;
                 int offset = bitsToInt(tempOffset);
@@ -741,15 +743,15 @@ public class DNSLookupService {
 
                 if (incPos)
                     bytePosParse += 2;
-    
+
                 NAME += getDomainAt(response, offset, false);
                 break;
-    
+
             } else {
                 position++;
                 if (incPos)
                     bytePosParse++;
-    
+
                 byte[] qNameDomainBytes = new byte[currNameLength];
                 // QNAME domains
                 for (int currQnameOctet = 0; currQnameOctet < currNameLength; currQnameOctet++) {
@@ -770,7 +772,7 @@ public class DNSLookupService {
 
         if (NAME.substring(NAME.length() - 1).equals(".")) {
             NAME = NAME.substring(0, NAME.length() - 1);
-        } 
+        }
         return NAME; // end QNAME if null byte (00)
     }
 
@@ -804,9 +806,10 @@ public class DNSLookupService {
     }
 
     /**
-     * Utility function to get a bit at a given position in a byte. 
-     * @param inputByte 
-     * @param position Position from the left (as if the bits are an array)
+     * Utility function to get a bit at a given position in a byte.
+     *
+     * @param inputByte
+     * @param position  Position from the left (as if the bits are an array)
      * @return int (either 1 or 0) which is the bit at the given position
      */
     private static int getBitAtPosition(byte inputByte, int position) {
@@ -818,6 +821,7 @@ public class DNSLookupService {
 
     /**
      * Utility function to convert number of bytes to an int. Only supports 2 or 4 bytes.
+     *
      * @param bytes byte array to convert
      * @return int conversion of the byte array
      */
@@ -826,13 +830,13 @@ public class DNSLookupService {
             return (bytes[0] & 0xff) << 8 | (bytes[1] & 0xff);
         } else if (bytes.length == 4) {
             return bytes[0] << 24 | (bytes[1] & 0xff) << 16 | (bytes[2] & 0xff) << 8
-          | (bytes[3] & 0xff);
+                    | (bytes[3] & 0xff);
         } else {
             System.out.print("conversion of bytes to int not supported");
             return 0;
         }
     }
-    
+
     /**
      * Utility function for printing a byte array. For debugging purposes.
      */
@@ -845,6 +849,7 @@ public class DNSLookupService {
 
     /**
      * Converts the domain name to a suitable format for Qname
+     *
      * @param hostName host name to translate
      * @return host name in the format of a QNAME (byte array)
      */
@@ -880,6 +885,7 @@ public class DNSLookupService {
 
     /**
      * Generate a unique query ID between 0bx0000 and 0bxFFFF
+     *
      * @return
      */
     private static byte[] generateQueryIDBytes() {

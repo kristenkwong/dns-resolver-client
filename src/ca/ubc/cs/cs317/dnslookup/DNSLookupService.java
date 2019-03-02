@@ -771,7 +771,8 @@ public class DNSLookupService {
         StringBuilder ipAddress = new StringBuilder();
         boolean colonFlag = false;
         for (byte datum : data) {
-            ipAddress.append(String.format("%02X", datum));
+            // TODO: need to squash the zeroes (e.g. 0000 -> 0, 5000 -> 500)
+            ipAddress.append(String.format("%02x", datum));
             if (colonFlag) {
                 ipAddress.append(":");
                 colonFlag = false;

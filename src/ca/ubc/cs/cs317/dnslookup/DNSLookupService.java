@@ -588,7 +588,11 @@ public class DNSLookupService {
             }
             String RDATA = "";
             try {
-                RDATA = convertRecordData(rdataBytes, TYPE);
+                if (TYPE == RecordType.A || TYPE == RecordType.AAAA) {
+                    RDATA = convertAddressRecordData(rdataBytes, TYPE);
+                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS){
+                    RDATA = getDomainAt(response, bytePosParse - RDLENGTH, false);
+                }
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
@@ -645,7 +649,11 @@ public class DNSLookupService {
             }
             String RDATA = "";
             try {
-                RDATA = convertRecordData(rdataBytes, TYPE);
+                if (TYPE == RecordType.A || TYPE == RecordType.AAAA) {
+                    RDATA = convertAddressRecordData(rdataBytes, TYPE);
+                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS){
+                    RDATA = getDomainAt(response, bytePosParse - RDLENGTH, false);
+                }
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
@@ -702,7 +710,11 @@ public class DNSLookupService {
             }
             String RDATA = "";
             try {
-                RDATA = convertRecordData(rdataBytes, TYPE);
+                if (TYPE == RecordType.A || TYPE == RecordType.AAAA) {
+                    RDATA = convertAddressRecordData(rdataBytes, TYPE);
+                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS){
+                    RDATA = getDomainAt(response, bytePosParse - RDLENGTH, false);
+                }
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
@@ -717,13 +729,13 @@ public class DNSLookupService {
 
 
     /**
-     * Return the correct string representation of RDATA depending on the RR type
+     * Return an IP Address as a string depending on the RR type
      * @param data array of bytes to convert
      * @param type resource record type
      * @return correct string representation (i.e. IPv4 Address for type A in dotted decimal notation)
      * @throws UnsupportedEncodingException unsupported encoding exception
      */
-    private static String convertRecordData(byte[] data, RecordType type) throws UnsupportedEncodingException {
+    private static String convertAddressRecordData(byte[] data, RecordType type) throws UnsupportedEncodingException {
         // TODO: need to do case for types CNAME and NS
         if (type == RecordType.A) {
             return getIpv4Address(data);
@@ -734,6 +746,7 @@ public class DNSLookupService {
             return new String(data, "UTF-8");
         }
     }
+
     /**
      * Converts an array of bytes into an IPv4 address
      * @param data array of bytes to convert

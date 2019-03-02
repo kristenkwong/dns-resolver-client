@@ -588,7 +588,7 @@ public class DNSLookupService {
             }
             String RDATA = "";
             try {
-                RDATA = convertRdataToString(rdataBytes, TYPE);
+                RDATA = convertRecordData(rdataBytes, TYPE);
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
@@ -645,7 +645,7 @@ public class DNSLookupService {
             }
             String RDATA = "";
             try {
-                RDATA = convertRdataToString(rdataBytes, TYPE);
+                RDATA = convertRecordData(rdataBytes, TYPE);
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
@@ -701,9 +701,8 @@ public class DNSLookupService {
                 bytePosParse++;
             }
             String RDATA = "";
-            // TODO: remove duplicate code
             try {
-                RDATA = convertRdataToString(rdataBytes, TYPE);
+                RDATA = convertRecordData(rdataBytes, TYPE);
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
@@ -724,7 +723,7 @@ public class DNSLookupService {
      * @return correct string representation (i.e. IPv4 Address for type A in dotted decimal notation)
      * @throws UnsupportedEncodingException unsupported encoding exception
      */
-    private static String convertRdataToString(byte[] data, RecordType type) throws UnsupportedEncodingException {
+    private static String convertRecordData(byte[] data, RecordType type) throws UnsupportedEncodingException {
         // TODO: need to do case for types CNAME and NS
         if (type == RecordType.A) {
             return getIpv4Address(data);

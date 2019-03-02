@@ -774,7 +774,6 @@ public class DNSLookupService {
         StringBuilder ipAddress = new StringBuilder();
         boolean colonFlag = false;
         for (byte datum : data) {
-            // TODO: need to squash the zeroes (e.g. 0000 -> 0, 5000 -> 500)
             ipAddress.append(String.format("%02x", datum));
             if (colonFlag) {
                 ipAddress.append(":");
@@ -783,25 +782,13 @@ public class DNSLookupService {
                 colonFlag = true;
             }
         }
-        int addressLength = ipAddress.toString().length();
-        return ipAddress.toString().substring(0, addressLength - 1);
+        String[] splitAddress = ipAddress.toString().split(":");
+        StringBuilder ipAddressBuilder = new StringBuilder();
+        for (String s : splitAddress) {
+            ipAddressBuilder.append(String.format("%x", Integer.parseInt(s, 16))).append(":");
+        }
+        return ipAddressBuilder.toString().substring(0, ipAddressBuilder.toString().length() - 1);
     }
-
-    // TODO: ignore this method for now
-//    private static String trimZeroes(String hexDigit) {
-//        String[] hexArray = hexDigit.split("");
-//        boolean allZeroes = true;
-//        for (String digit : hexArray) {
-//            if (!digit.equals("0")) {
-//                allZeroes = false;
-//                break;
-//            }
-//        }
-//        if (allZeroes) {
-//            return "0";
-//        }
-//        return hexDigit;
-//    }
 
     private static String getDomainAt(byte[] response, int position, boolean incPos) {
         // for resolving message compression pointers

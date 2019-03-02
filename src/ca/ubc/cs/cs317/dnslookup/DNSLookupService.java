@@ -588,7 +588,7 @@ public class DNSLookupService {
             }
             String RDATA = "";
             try {
-                RDATA = new String(rdataBytes, "UTF-8");
+                RDATA = convertRdataToString(rdataBytes, TYPE);
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
@@ -645,7 +645,7 @@ public class DNSLookupService {
             }
             String RDATA = "";
             try {
-                RDATA = new String(rdataBytes, "UTF-8");
+                RDATA = convertRdataToString(rdataBytes, TYPE);
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
@@ -701,17 +701,74 @@ public class DNSLookupService {
                 bytePosParse++;
             }
             String RDATA = "";
+            // TODO: remove duplicate code
             try {
-                RDATA = new String(rdataBytes, "UTF-8");
+                RDATA = convertRdataToString(rdataBytes, TYPE);
             } catch (UnsupportedEncodingException ex) {
                 System.out.println(ex);
             }
 
+            System.out.println("RDATA: " + RDATA);
             ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
             message.addAdditionalRR(record);
             cache.addResult(record);
         }
         return message;
+    }
+
+
+    /**
+     * Return the correct string representation of RDATA depending on the RR type
+     * @param data array of bytes to convert
+     * @param type resource record type
+     * @return correct string representation (i.e. IPv4 Address for type A in dotted decimal notation)
+     * @throws UnsupportedEncodingException unsupported encoding exception
+     */
+    private static String convertRdataToString(byte[] data, RecordType type) throws UnsupportedEncodingException {
+        // TODO: need to do case for types CNAME and NS
+        if (type == RecordType.A) {
+            return getIpv4Address(data);
+        } else if (type == RecordType.AAAA) {
+            return getIpv6Address(data);
+        } else {
+            // TODO: remove this fail clause
+            return new String(data, "UTF-8");
+        }
+    }
+    /**
+     * Converts an array of bytes into an IPv4 address
+     * @param data array of bytes to convert
+     * @return IPv4 address as a String
+     */
+    private static String getIpv4Address(byte[] data) {
+        StringBuilder ipAddress = new StringBuilder();
+        for (byte b : data) {
+            // unsigned int
+            ipAddress.append((int) b & 0xFF).append(".");
+        }
+        int addressLength = ipAddress.toString().length();
+        return ipAddress.toString().substring(0, addressLength - 1);
+    }
+
+    /**
+     * Converts an array of bytes into an IPv6 address
+     * @param data array of bytes to convert
+     * @return IPv6 address as a String
+     */
+    private static String getIpv6Address(byte[] data) {
+        StringBuilder ipAddress = new StringBuilder();
+        boolean colonFlag = false;
+        for (byte datum : data) {
+            ipAddress.append(String.format("%02X", datum));
+            if (colonFlag) {
+                ipAddress.append(":");
+                colonFlag = false;
+            } else {
+                colonFlag = true;
+            }
+        }
+        int addressLength = ipAddress.toString().length();
+        return ipAddress.toString().substring(0, addressLength - 1);
     }
 
     private static String getDomainAt(byte[] response, int position, boolean incPos) {

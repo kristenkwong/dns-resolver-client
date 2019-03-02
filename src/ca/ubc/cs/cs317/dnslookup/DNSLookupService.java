@@ -21,6 +21,8 @@ public class DNSLookupService {
     private static Random random = new Random();
     final static int MAX_QUERY_ID = 0xFFFF; // must be 16 bit -> 0x0 to 0xFFFF
 
+    private static int bytePosParse = 0; // keep track of position parsed so far
+
     private static int[] generatedIDs = new int[65536]; // can have 65536 unique values
     // if the ID was generated, generatedIDs[ID#] will be 1, otherwise 0
 
@@ -483,7 +485,7 @@ public class DNSLookupService {
         message.setAnCount(ARCOUNT);
         System.out.println("ARCOUNT: " + ARCOUNT);
 
-        int bytePosParse = 12; // byte to start parsing variable length entries
+        bytePosParse = 12; // byte to start parsing variable length entries
 
         // ------ QUESTION ------ 
         // variable length
@@ -547,53 +549,7 @@ public class DNSLookupService {
             System.out.println("----- ANSWER #" + ansNum);
 
             // NAME - variable length
-            String NAME = "";
-            while (true) {
-
-                // NAME length (8 bits - 1 byte)
-                if (getBitAtPosition(response[bytePosParse], 0) == 1 && getBitAtPosition(response[bytePosParse], 1) == 1) {
-                    // domain name is a pointer
-                    int[] tempOffset = new int[14]; // bits to convert to offset
-                    for (int i = 2; i <= 7; i++) {
-                        tempOffset[i-2] = getBitAtPosition(response[bytePosParse], i);
-                    }
-                    bytePosParse++;
-                    for (int i = 0; i <= 7; i++) {
-                        tempOffset[i+6] = getBitAtPosition(response[bytePosParse], i);
-                    }
-                    bytePosParse++;
-                    int offset = bitsToInt(tempOffset);
-                    System.out.println("offset: " + offset);
-    
-                    NAME += getDomainAt(response, offset);
-
-                } else {
-                    int currNameLength = response[bytePosParse];
-
-                    if (currNameLength == 0) {
-                        // remove last "." if end of domain
-                        if (NAME.substring(NAME.length() - 1) == ".") {
-                            NAME = NAME.substring(0, NAME.length() - 1);
-                        } 
-                        break; // end QNAME if null byte (00)
-                    }
-
-                    bytePosParse++;
-
-                    byte[] qNameDomainBytes = new byte[bytePosParse];
-                    // QNAME domains
-                    for (int currQnameOctet = 0; currQnameOctet < currNameLength; currQnameOctet++) {
-                        qNameDomainBytes[currQnameOctet] += response[bytePosParse];
-                        bytePosParse++;
-                    }
-                    try {
-                        String asciiDomain = new String(qNameDomainBytes, "UTF-8");
-                        NAME += asciiDomain + ".";
-                    } catch (Exception e) {
-                        continue;
-                    }
-                }
-            }
+            String NAME = getDomainAt(response, bytePosParse, true);
             System.out.println("NAME: " + NAME);
 
             // TYPE 
@@ -649,54 +605,7 @@ public class DNSLookupService {
             System.out.println("----- AUTHORITY #" + ansNum);
 
             // NAME - variable length
-            String NAME = "";
-
-            while (true) {
-
-                // NAME length (8 bits - 1 byte)
-                if (getBitAtPosition(response[bytePosParse], 0) == 1 && getBitAtPosition(response[bytePosParse], 1) == 1) {
-                    // domain name is a pointer
-                    int[] tempOffset = new int[14]; // bits to convert to offset
-                    for (int i = 2; i <= 7; i++) {
-                        tempOffset[i-2] = getBitAtPosition(response[bytePosParse], i);
-                    }
-                    bytePosParse++;
-                    for (int i = 0; i <= 7; i++) {
-                        tempOffset[i+6] = getBitAtPosition(response[bytePosParse], i);
-                    }
-                    bytePosParse++;
-                    int offset = bitsToInt(tempOffset);
-                    System.out.println("offset: " + offset);
-    
-                    NAME += getDomainAt(response, offset);
-
-                } else {
-                    int currNameLength = response[bytePosParse];
-
-                    if (currNameLength == 0) {
-                        // remove last "." if end of domain
-                        if (NAME.substring(NAME.length() - 1) == ".") {
-                            NAME = NAME.substring(0, NAME.length() - 1);
-                        } 
-                        break; // end QNAME if null byte (00)
-                    }
-
-                    bytePosParse++;
-
-                    byte[] qNameDomainBytes = new byte[bytePosParse];
-                    // QNAME domains
-                    for (int currQnameOctet = 0; currQnameOctet < currNameLength; currQnameOctet++) {
-                        qNameDomainBytes[currQnameOctet] += response[bytePosParse];
-                        bytePosParse++;
-                    }
-                    try {
-                        String asciiDomain = new String(qNameDomainBytes, "UTF-8");
-                        NAME += asciiDomain + ".";
-                    } catch (Exception e) {
-                        continue;
-                    }
-                }
-            }
+            String NAME = getDomainAt(response, bytePosParse, true);
             System.out.println("NAME: " + NAME);
 
             // TYPE 
@@ -752,54 +661,7 @@ public class DNSLookupService {
             System.out.println("----- ADDITIONAL #" + ansNum);
 
             // NAME - variable length
-            String NAME = "";
-
-            while (true) {
-
-                // NAME length (8 bits - 1 byte)
-                if (getBitAtPosition(response[bytePosParse], 0) == 1 && getBitAtPosition(response[bytePosParse], 1) == 1) {
-                    // domain name is a pointer
-                    int[] tempOffset = new int[14]; // bits to convert to offset
-                    for (int i = 2; i <= 7; i++) {
-                        tempOffset[i-2] = getBitAtPosition(response[bytePosParse], i);
-                    }
-                    bytePosParse++;
-                    for (int i = 0; i <= 7; i++) {
-                        tempOffset[i+6] = getBitAtPosition(response[bytePosParse], i);
-                    }
-                    bytePosParse++;
-                    int offset = bitsToInt(tempOffset);
-                    System.out.println("offset: " + offset);
-    
-                    NAME += getDomainAt(response, offset);
-
-                } else {
-                    int currNameLength = response[bytePosParse];
-
-                    if (currNameLength == 0) {
-                        // remove last "." if end of domain
-                        if (NAME.substring(NAME.length() - 1) == ".") {
-                            NAME = NAME.substring(0, NAME.length() - 1);
-                        } 
-                        break; // end QNAME if null byte (00)
-                    }
-
-                    bytePosParse++;
-
-                    byte[] qNameDomainBytes = new byte[bytePosParse];
-                    // QNAME domains
-                    for (int currQnameOctet = 0; currQnameOctet < currNameLength; currQnameOctet++) {
-                        qNameDomainBytes[currQnameOctet] += response[bytePosParse];
-                        bytePosParse++;
-                    }
-                    try {
-                        String asciiDomain = new String(qNameDomainBytes, "UTF-8");
-                        NAME += asciiDomain + ".";
-                    } catch (Exception e) {
-                        continue;
-                    }
-                }
-            }
+            String NAME = getDomainAt(response, bytePosParse, true);
             System.out.println("NAME: " + NAME);
 
             // TYPE 
@@ -850,7 +712,7 @@ public class DNSLookupService {
         return message;
     }
 
-    private static String getDomainAt(byte[] response, int position) {
+    private static String getDomainAt(byte[] response, int position, boolean incPos) {
         // for resolving message compression pointers
 
         // NAME length (8 bits - 1 byte)
@@ -876,18 +738,25 @@ public class DNSLookupService {
                 position++;
                 int offset = bitsToInt(tempOffset);
                 System.out.println("offset: " + offset);
+
+                if (incPos)
+                    bytePosParse += 2;
     
-                NAME += getDomainAt(response, offset);
+                NAME += getDomainAt(response, offset, false);
                 break;
     
             } else {
                 position++;
+                if (incPos)
+                    bytePosParse++;
     
                 byte[] qNameDomainBytes = new byte[currNameLength];
                 // QNAME domains
                 for (int currQnameOctet = 0; currQnameOctet < currNameLength; currQnameOctet++) {
                     qNameDomainBytes[currQnameOctet] += response[position];
                     position++;
+                    if (incPos)
+                        bytePosParse++;
                 }
                 try {
                     String asciiDomain = new String(qNameDomainBytes, "UTF-8");

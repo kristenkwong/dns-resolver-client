@@ -322,29 +322,28 @@ public class DNSLookupService {
             // if the response isn't authoritative
             List<ResourceRecord> additional = filterARecords(response.getAdditionalRRs());
             if (additional.size() >= 1) {
-                for (int i = 0; i < additional.size(); i++) {
-                    if (additional.get(i).getHostName() == currentDomain) {
-                        nextAddress = additional.get(i).getInetResult();
+                for (ResourceRecord resourceRecord : additional) {
+                    if (resourceRecord.getHostName().equals(currentDomain)) {
+                        nextAddress = resourceRecord.getInetResult();
                         return;
-                    } 
+                    }
                 }
                 nextAddress = additional.get(0).getInetResult();
             } else {
                 List<ResourceRecord> authorities = filterNSRecords(response.getAuthorityRRs());
                 if (authorities.size() >= 1) {
-                    for (int i = 0; i < authorities.size(); i++) {
-                        if (authorities.get(i).getHostName() == currentDomain) {
-                            nextNSRecord = authorities.get(i).getTextResult();
+                    for (ResourceRecord authority : authorities) {
+                        if (authority.getHostName().equals(currentDomain)) {
+                            nextNSRecord = authority.getTextResult();
                             return;
-                        } 
+                        }
                     }
                     nextNSRecord = authorities.get(0).getTextResult();
                 }
             }
-
-           
+        } else {
+            currentServer = rootServer;
         }
-
     }
 
     private static InetAddress getInetFromHostname(String hostName, List<ResourceRecord> records) {
@@ -357,7 +356,7 @@ public class DNSLookupService {
     }
 
     /**
-     * Returns a list of only NS resource records from a list of RRs
+     * Returns a list of only AR resource records from a list of RRs
      * @param records list of records to filter
      * @return a list of only name server records from the input list
      */

@@ -339,9 +339,11 @@ public class DNSLookupService {
                         }
                     }
                     nextNSRecord = authorities.get(0).getTextResult();
+                    currentServer = rootServer;
                 }
             }
         } else {
+            // reset the current server to query to original root server
             currentServer = rootServer;
         }
     }

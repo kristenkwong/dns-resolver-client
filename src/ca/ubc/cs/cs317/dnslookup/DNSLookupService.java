@@ -217,7 +217,7 @@ public class DNSLookupService {
     private static void retrieveResultsFromServer(DNSNode node, InetAddress server) {
 
         // TODO To be completed by the student
-        String DNSServerAddress = new String(server.getHostAddress());
+        String DNSServerAddress = server.getHostAddress();
 
         // encode a query with a unique ID and host name & records
         int queryID = generateQueryID();
@@ -254,7 +254,9 @@ public class DNSLookupService {
 
             /* The next line consists of 2 spaces, the word Answers, followed by a space and the number 
             of response records in the answer in parenthesis. */
-            System.out.printf("  Answers (%d)\n", numResponses);
+            System.out.printf("  Answers (%d)\n", response.getAnCount());
+            System.out.printf("  Name Servers (%d)\n", response.getNsCount());
+            System.out.printf("  Additional Information (%d)\n", response.getArCount());
 
             /* For each response record you are to print the records Name, followed by its time-to-live, 
             record type in (one of A, AAAA, CN, NS, or else the type number) followed by the type value. 
@@ -471,7 +473,7 @@ public class DNSLookupService {
             parsedNscount[8 + i] = getBitAtPosition(response[9], i);
         }
         int NSCOUNT = bitsToInt(parsedNscount);
-        message.setAnCount(NSCOUNT);
+        message.setNsCount(NSCOUNT);
         System.out.println("NSCOUNT: " + NSCOUNT);
 
         // ARCOUNT (16 bits)
@@ -483,7 +485,7 @@ public class DNSLookupService {
             parsedArcount[8 + i] = getBitAtPosition(response[11], i);
         }
         int ARCOUNT = bitsToInt(parsedArcount);
-        message.setAnCount(ARCOUNT);
+        message.setArCount(ARCOUNT);
         System.out.println("ARCOUNT: " + ARCOUNT);
 
         bytePosParse = 12; // byte to start parsing variable length entries

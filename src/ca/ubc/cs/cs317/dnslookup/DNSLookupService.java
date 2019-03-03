@@ -249,14 +249,22 @@ public class DNSLookupService {
 
         // decode response datagram
         if (verboseTracing) {
-
             System.out.printf("Response ID: %d Authoritative = %b\n", response.getQueryId(), isAuthoritative);
 
             /* The next line consists of 2 spaces, the word Answers, followed by a space and the number 
             of response records in the answer in parenthesis. */
             System.out.printf("  Answers (%d)\n", response.getAnCount());
+            for (ResourceRecord record : response.getAnswerRRs()) {
+                verbosePrintResourceRecord(record, record.getType().getCode());
+            }
             System.out.printf("  Name Servers (%d)\n", response.getNsCount());
+            for (ResourceRecord record : filterNSRecords(response.getAuthorityRRs())) {
+                verbosePrintResourceRecord(record, record.getType().getCode());
+            }
             System.out.printf("  Additional Information (%d)\n", response.getArCount());
+            for (ResourceRecord record : response.getAdditionalRRs()) {
+                verbosePrintResourceRecord(record, record.getType().getCode());
+            }
 
             /* For each response record you are to print the records Name, followed by its time-to-live, 
             record type in (one of A, AAAA, CN, NS, or else the type number) followed by the type value. 
@@ -266,6 +274,21 @@ public class DNSLookupService {
 
         }
         // store response in the cache
+    }
+
+    /**
+     * Returns a list of only NS resource records from a list of RRs
+     * @param records list of records to filter
+     * @return a list of only name server records from the input list
+     */
+    private static List<ResourceRecord> filterNSRecords(List<ResourceRecord> records) {
+        List<ResourceRecord> nameServerRecords = new ArrayList<>();
+        for (ResourceRecord record : records) {
+            if (record.getType() == RecordType.NS) {
+                nameServerRecords.add(record);
+            }
+        }
+        return nameServerRecords;
     }
 
     /**

@@ -13,8 +13,10 @@ public class DNSLookupService {
     private static final int MAX_INDIRECTION_LEVEL = 10;
 
     private static InetAddress rootServer;
+    private static InetAddress currentServer;
     private static boolean verboseTracing = false;
     private static DatagramSocket socket;
+    private static String currentDomain;
 
     private static DNSCache cache = DNSCache.getInstance();
 
@@ -42,6 +44,7 @@ public class DNSLookupService {
 
         try {
             rootServer = InetAddress.getByName(args[0]);
+            currentServer = rootServer;
             System.out.println("Root DNS server is: " + rootServer.getHostAddress());
         } catch (UnknownHostException e) {
             System.err.println("Invalid root server (" + e.getMessage() + ").");
@@ -131,6 +134,7 @@ public class DNSLookupService {
                     System.err.println("Invalid call. Format:\n\tlookup hostName [type]");
                     continue;
                 }
+                currentDomain = commandArgs[1];
                 findAndPrintResults(commandArgs[1], type);
             } else if (commandArgs[0].equalsIgnoreCase("dump")) {
                 // DUMP: Print all results still cached
@@ -161,6 +165,7 @@ public class DNSLookupService {
 
         DNSNode node = new DNSNode(hostName, type);
         printResults(node, getResults(node, 0));
+        currentServer = rootServer;
     }
 
     /**
@@ -175,30 +180,36 @@ public class DNSLookupService {
      * @return A set of resource records corresponding to the specific query requested.
      */
     private static Set<ResourceRecord> getResults(DNSNode node, int indirectionLevel) {
-
         if (indirectionLevel > MAX_INDIRECTION_LEVEL) {
             System.err.println("Maximum number of indirection levels reached.");
             return Collections.emptySet();
         }
 
         // TODO To be completed by the student
-
-        // if it's looking for a CNAME
-        if (!cache.getCachedResults(node).isEmpty() && node.getType() == RecordType.CNAME) {
-            return cache.getCachedResults(node);
-        }
-
-        // look for record in the cache; if found, return
-        if (cache.getCachedResults(node).isEmpty()) {
-            // if not in cache, retrieve result from root server
-            retrieveResultsFromServer(node, rootServer);
-
-        }
+        // look for record in cache; if found return
+        // else retrieve results from server
+//        if (cache.getCachedResults(node).isEmpty()) {
+            retrieveResultsFromServer(node, currentServer);
+//        }
+        getResults(new DNSNode(currentDomain, RecordType.A), indirectionLevel + 1);
+//        if (!cache.getCachedResults(node).isEmpty()) {
+//            System.out.println("Found stuff.");
+//        }
+//        // if it's looking for a CNAME
+//        if (!cache.getCachedResults(node).isEmpty() && node.getType() == RecordType.CNAME) {
+//            return cache.getCachedResults(node);
+//        }
+//
+//        // look for record in the cache; if found, return
+//        if (cache.getCachedResults(node).isEmpty()) {
+//            // if not in cache, retrieve result from root server
+//            retrieveResultsFromServer(node, currentServer);
+//        }
 
         // if the DNSNode is a CNAME, have to do recursion to handle the root domain
-        if (node.getType() != RecordType.CNAME) {
-
-        }
+//        if (node.getType() != RecordType.CNAME) {
+//            getResults(new DNSNode(currentDomain, node.getType()), indirectionLevel + 1);
+//        }
 
         // if record is a CNAME, repeat search with a new node with the canonical name
 
@@ -273,9 +284,28 @@ public class DNSLookupService {
             the method verbosePrintResourceRecord, provided with the code. */
 
         }
+        if (!isAuthoritative) {
+            String nameServer = filterNSRecords((response.getAuthorityRRs())).get(0).getTextResult();
+            if (response.getArCount() > 0) {
+                currentServer = getInetFromHostname(nameServer, response.getAdditionalRRs());
+            } else {
+                currentDomain = nameServer;
+                currentServer = rootServer;
+            }
+        } else {
+
+        }
         // store response in the cache
     }
 
+    private static InetAddress getInetFromHostname(String hostName, List<ResourceRecord> records) {
+        for (ResourceRecord record : records) {
+            if (record.getHostName().equals(hostName) && record.getType() == RecordType.A) {
+                return record.getInetResult();
+            }
+        }
+        return null;
+    }
     /**
      * Returns a list of only NS resource records from a list of RRs
      * @param records list of records to filter
@@ -412,7 +442,7 @@ public class DNSLookupService {
 
         // QR (1 bit)
         int QR = getBitAtPosition(response[2], 0);
-        System.out.println("QR: " + QR);
+//        System.out.println("QR: " + QR);
         message.setQr(QR);
 
         // OPCODE (4 bits)
@@ -422,27 +452,27 @@ public class DNSLookupService {
         }
         int OPCODE = bitsToInt(parsedOpcode);
         message.setOpCode(OPCODE);
-        System.out.println("OPCODE: " + OPCODE);
+//        System.out.println("OPCODE: " + OPCODE);
 
         // AA (1 bit)
         int AA = getBitAtPosition(response[2], 5);
         message.setAA(AA);
-        System.out.println("AA: " + AA);
+//        System.out.println("AA: " + AA);
 
         // TC (1 bit)
         int TC = getBitAtPosition(response[2], 6);
         message.setTC(TC);
-        System.out.println("TC: " + TC);
+//        System.out.println("TC: " + TC);
 
         // RD (1 bit)
         int RD = getBitAtPosition(response[2], 7);
         message.setRD(RD);
-        System.out.println("RD: " + RD);
+//        System.out.println("RD: " + RD);
 
         // RA (1 bit)
         int RA = getBitAtPosition(response[3], 0);
         message.setRA(RA);
-        System.out.println("RA: " + RA);
+//        System.out.println("RA: " + RA);
 
         // Z (3 bits)
         int[] parsedZ = new int[4];
@@ -451,7 +481,7 @@ public class DNSLookupService {
         }
         int Z = bitsToInt(parsedZ);
         message.setZ(Z);
-        System.out.println("Z: " + Z);
+//        System.out.println("Z: " + Z);
 
         // RCODE (4 bits)
         int[] parsedRcode = new int[4];
@@ -460,7 +490,7 @@ public class DNSLookupService {
         }
         int RCODE = bitsToInt(parsedRcode);
         message.setRCODE(RCODE);
-        System.out.println("RCODE: " + RCODE);
+//        System.out.println("RCODE: " + RCODE);
 
         // QDCOUNT (16 bits)
         int[] parsedQDCount = new int[16];
@@ -472,7 +502,7 @@ public class DNSLookupService {
         }
         int QDCOUNT = bitsToInt(parsedQDCount);
         message.setQdCount(QDCOUNT);
-        System.out.println("QDCOUNT: " + QDCOUNT);
+//        System.out.println("QDCOUNT: " + QDCOUNT);
 
         // ANCOUNT (16 bits)
         int[] parsedAncount = new int[16];
@@ -484,7 +514,7 @@ public class DNSLookupService {
         }
         int ANCOUNT = bitsToInt(parsedAncount);
         message.setAnCount(ANCOUNT);
-        System.out.println("ANCOUNT: " + ANCOUNT);
+//        System.out.println("ANCOUNT: " + ANCOUNT);
 
         // NSCOUNT (16 bits)
         int[] parsedNscount = new int[16];
@@ -496,7 +526,7 @@ public class DNSLookupService {
         }
         int NSCOUNT = bitsToInt(parsedNscount);
         message.setNsCount(NSCOUNT);
-        System.out.println("NSCOUNT: " + NSCOUNT);
+//        System.out.println("NSCOUNT: " + NSCOUNT);
 
         // ARCOUNT (16 bits)
         int[] parsedArcount = new int[16];
@@ -508,7 +538,7 @@ public class DNSLookupService {
         }
         int ARCOUNT = bitsToInt(parsedArcount);
         message.setArCount(ARCOUNT);
-        System.out.println("ARCOUNT: " + ARCOUNT);
+//        System.out.println("ARCOUNT: " + ARCOUNT);
 
         bytePosParse = 12; // byte to start parsing variable length entries
 
@@ -544,20 +574,20 @@ public class DNSLookupService {
                 }
             }
             // TODO SET QNAME - need to refactor QNAME to support an array of questions
-            System.out.println("QNAME: " + QNAME);
+//            System.out.println("QNAME: " + QNAME);
 
             // QTYPE (2 octets = 2 bytes = 16 bits)
             byte[] parsedQtype = {response[bytePosParse], response[bytePosParse]};
             bytePosParse += 2;
             int QTYPE = bytesToInt(parsedQtype);
-            System.out.println("QTYPE: " + QTYPE);
+//            System.out.println("QTYPE: " + QTYPE);
             // TODO SET QTYPE 
 
             // QCLASS (2 octets = 2 bytes = 16 bits)
             byte[] parsedQclass = {response[bytePosParse], response[bytePosParse]};
             bytePosParse += 2;
             int QCLASS = bytesToInt(parsedQclass);
-            System.out.println("QCLASS: " + QCLASS);
+//            System.out.println("QCLASS: " + QCLASS);
             // TODO SET QCLASS 
 
             DNSQuestionEntry question = new DNSQuestionEntry(QNAME, QTYPE, QCLASS);
@@ -568,7 +598,7 @@ public class DNSLookupService {
 
         for (int ansNum = 0; ansNum < ANCOUNT; ansNum++) {
 
-            System.out.println("----- ANSWER #" + ansNum);
+//            System.out.println("----- ANSWER #" + ansNum);
 
             ResourceRecord record = parseResourceRecord(response);
             message.addAnswerRR(record);
@@ -579,7 +609,7 @@ public class DNSLookupService {
 
         for (int ansNum = 0; ansNum < NSCOUNT; ansNum++) {
 
-            System.out.println("----- AUTHORITY #" + ansNum);
+//            System.out.println("----- AUTHORITY #" + ansNum);
             ResourceRecord record = parseResourceRecord(response);
             message.addAuthorityRR(record);
             cache.addResult(record);
@@ -589,7 +619,7 @@ public class DNSLookupService {
 
         for (int ansNum = 0; ansNum < ARCOUNT; ansNum++) {
 
-            System.out.println("----- ADDITIONAL #" + ansNum);
+//            System.out.println("----- ADDITIONAL #" + ansNum);
 
             ResourceRecord record = parseResourceRecord(response);
             message.addAdditionalRR(record);
@@ -604,20 +634,20 @@ public class DNSLookupService {
 
             // NAME - variable length
             String NAME = getDomainAt(response, bytePosParse, true);
-            System.out.println("NAME: " + NAME);
+//            System.out.println("NAME: " + NAME);
 
             // TYPE 
             byte[] typeBytes = {response[bytePosParse], response[bytePosParse + 1]};
             bytePosParse += 2;
             RecordType TYPE;
             TYPE = RecordType.getByCode(bytesToInt(typeBytes));
-            System.out.println("TYPE: " + TYPE.getCode());
+//            System.out.println("TYPE: " + TYPE.getCode());
 
             // CLASS
             byte[] classBytes = {response[bytePosParse], response[bytePosParse + 1]};
             bytePosParse += 2;
             int CLASS = bytesToInt(classBytes);
-            System.out.println("CLASS: " + CLASS);
+//            System.out.println("CLASS: " + CLASS);
 
             // TTL (32-bit; 4 bytes)
             byte[] ttlBytes = new byte[4];
@@ -626,13 +656,13 @@ public class DNSLookupService {
                 bytePosParse++;
             }
             int TTL = bytesToInt(ttlBytes);
-            System.out.println("TTL: " + TTL);
+//            System.out.println("TTL: " + TTL);
 
             // RDLENGTH (16-bit, 2 bytes)
             byte[] rdlengthBytes = {response[bytePosParse], response[bytePosParse + 1]};
             bytePosParse += 2;
             int RDLENGTH = bytesToInt(rdlengthBytes);
-            System.out.println("RDLENGTH: " + RDLENGTH);
+//            System.out.println("RDLENGTH: " + RDLENGTH);
 
             // RDATA
             byte[] rdataBytes = new byte[RDLENGTH];
@@ -644,16 +674,16 @@ public class DNSLookupService {
             try {
                 if (TYPE == RecordType.A || TYPE == RecordType.AAAA) {
                     RDATA = convertAddressRecordData(rdataBytes, TYPE);
+                    return new ResourceRecord(NAME, TYPE, (long) TTL, InetAddress.getByName(RDATA));
                 } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS) {
                     RDATA = getDomainAt(response, bytePosParse - RDLENGTH, false);
                 }
-            } catch (UnsupportedEncodingException ex) {
+            } catch (UnsupportedEncodingException | UnknownHostException ex) {
                 System.out.println(ex);
             }
 
-            System.out.println("RDATA: " + RDATA);
-            ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
-            return record;
+//            System.out.println("RDATA: " + RDATA);
+            return new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
     }
 
 
@@ -666,7 +696,6 @@ public class DNSLookupService {
      * @throws UnsupportedEncodingException unsupported encoding exception
      */
     private static String convertAddressRecordData(byte[] data, RecordType type) throws UnsupportedEncodingException {
-        // TODO: need to do case for types CNAME and NS
         if (type == RecordType.A) {
             return getIpv4Address(data);
         } else if (type == RecordType.AAAA) {
@@ -744,7 +773,7 @@ public class DNSLookupService {
                 }
                 position++;
                 int offset = bitsToInt(tempOffset);
-                System.out.println("offset: " + offset);
+//                System.out.println("offset: " + offset);
 
                 if (incPos)
                     bytePosParse += 2;

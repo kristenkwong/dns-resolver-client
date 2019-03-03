@@ -373,7 +373,6 @@ public class DNSLookupService {
      */
     private static DNSMessage decodeDNSQuery(byte[] response) {
         // assume response is less than 1024 bytes
-        // TODO
 
         // DEBUGGING:
         // printByteArray(response);
@@ -542,65 +541,13 @@ public class DNSLookupService {
             message.addQuestion(question);
         }
 
-        // TODO!
-
         // ------ ANSWER ------
 
         for (int ansNum = 0; ansNum < ANCOUNT; ansNum++) {
 
             System.out.println("----- ANSWER #" + ansNum);
 
-            // NAME - variable length
-            String NAME = getDomainAt(response, bytePosParse, true);
-            System.out.println("NAME: " + NAME);
-
-            // TYPE 
-            byte[] typeBytes = {response[bytePosParse], response[bytePosParse + 1]};
-            bytePosParse += 2;
-            RecordType TYPE;
-            TYPE = RecordType.getByCode(bytesToInt(typeBytes));
-            System.out.println("TYPE: " + TYPE.getCode());
-
-            // CLASS
-            byte[] classBytes = {response[bytePosParse], response[bytePosParse + 1]};
-            bytePosParse += 2;
-            int CLASS = bytesToInt(classBytes);
-            System.out.println("CLASS: " + CLASS);
-
-            // TTL (32-bit; 4 bytes)
-            byte[] ttlBytes = new byte[4];
-            for (int i = 0; i < 4; i++) {
-                ttlBytes[i] = response[bytePosParse];
-                bytePosParse++;
-            }
-            int TTL = bytesToInt(ttlBytes);
-            System.out.println("TTL: " + TTL);
-
-            // RDLENGTH (16-bit, 2 bytes)
-            byte[] rdlengthBytes = {response[bytePosParse], response[bytePosParse + 1]};
-            bytePosParse += 2;
-            int RDLENGTH = bytesToInt(rdlengthBytes);
-            System.out.println("RDLENGTH: " + RDLENGTH);
-
-            // RDATA
-            byte[] rdataBytes = new byte[RDLENGTH];
-            for (int i = 0; i < RDLENGTH; i++) {
-                rdataBytes[i] = response[bytePosParse];
-                bytePosParse++;
-            }
-            String RDATA = "";
-            try {
-                if (TYPE == RecordType.A || TYPE == RecordType.AAAA) {
-                    RDATA = convertAddressRecordData(rdataBytes, TYPE);
-                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS) {
-                    RDATA = getDomainAt(response, bytePosParse - RDLENGTH, false);
-                }
-            } catch (UnsupportedEncodingException ex) {
-                System.out.println(ex);
-            }
-
-            System.out.println("RDATA: " + RDATA);
-            ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
+            ResourceRecord record = parseResourceRecord(response);
             message.addAnswerRR(record);
             cache.addResult(record);
         }
@@ -610,58 +557,7 @@ public class DNSLookupService {
         for (int ansNum = 0; ansNum < NSCOUNT; ansNum++) {
 
             System.out.println("----- AUTHORITY #" + ansNum);
-
-            // NAME - variable length
-            String NAME = getDomainAt(response, bytePosParse, true);
-            System.out.println("NAME: " + NAME);
-
-            // TYPE 
-            byte[] typeBytes = {response[bytePosParse], response[bytePosParse + 1]};
-            bytePosParse += 2;
-            RecordType TYPE;
-            TYPE = RecordType.getByCode(bytesToInt(typeBytes));
-            System.out.println("TYPE: " + TYPE.getCode());
-
-            // CLASS
-            byte[] classBytes = {response[bytePosParse], response[bytePosParse + 1]};
-            bytePosParse += 2;
-            int CLASS = bytesToInt(classBytes);
-            System.out.println("CLASS: " + CLASS);
-
-            // TTL (32-bit; 4 bytes)
-            byte[] ttlBytes = new byte[4];
-            for (int i = 0; i < 4; i++) {
-                ttlBytes[i] = response[bytePosParse];
-                bytePosParse++;
-            }
-            int TTL = bytesToInt(ttlBytes);
-            System.out.println("TTL: " + TTL);
-
-            // RDLENGTH (16-bit, 2 bytes)
-            byte[] rdlengthBytes = {response[bytePosParse], response[bytePosParse + 1]};
-            bytePosParse += 2;
-            int RDLENGTH = bytesToInt(rdlengthBytes);
-            System.out.println("RDLENGTH: " + RDLENGTH);
-
-            // RDATA
-            byte[] rdataBytes = new byte[RDLENGTH];
-            for (int i = 0; i < RDLENGTH; i++) {
-                rdataBytes[i] = response[bytePosParse];
-                bytePosParse++;
-            }
-            String RDATA = "";
-            try {
-                if (TYPE == RecordType.A || TYPE == RecordType.AAAA) {
-                    RDATA = convertAddressRecordData(rdataBytes, TYPE);
-                } else if (TYPE == RecordType.CNAME || TYPE == RecordType.NS) {
-                    RDATA = getDomainAt(response, bytePosParse - RDLENGTH, false);
-                }
-            } catch (UnsupportedEncodingException ex) {
-                System.out.println(ex);
-            }
-
-            System.out.println("RDATA: " + RDATA);
-            ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
+            ResourceRecord record = parseResourceRecord(response);
             message.addAuthorityRR(record);
             cache.addResult(record);
         }
@@ -672,6 +568,17 @@ public class DNSLookupService {
 
             System.out.println("----- ADDITIONAL #" + ansNum);
 
+            ResourceRecord record = parseResourceRecord(response);
+            message.addAdditionalRR(record);
+            cache.addResult(record);
+        }
+
+        bytePosParse = 0;
+        return message;
+    }
+
+    private static ResourceRecord parseResourceRecord(byte[] response) {
+
             // NAME - variable length
             String NAME = getDomainAt(response, bytePosParse, true);
             System.out.println("NAME: " + NAME);
@@ -723,10 +630,7 @@ public class DNSLookupService {
 
             System.out.println("RDATA: " + RDATA);
             ResourceRecord record = new ResourceRecord(NAME, TYPE, (long) TTL, RDATA);
-            message.addAdditionalRR(record);
-            cache.addResult(record);
-        }
-        return message;
+            return record;
     }
 
 

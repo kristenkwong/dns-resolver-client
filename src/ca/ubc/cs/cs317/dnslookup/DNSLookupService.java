@@ -202,12 +202,26 @@ public class DNSLookupService {
 
         DNSNode cnameNode = new DNSNode(node.getHostName(), RecordType.CNAME);
         Set<ResourceRecord> cnameRecords = cache.getCachedResults(cnameNode);
-        if (node.getType() != RecordType.CNAME && !cache.getCachedResults(cnameNode).isEmpty()) {
+        if (node.getType() != RecordType.CNAME && !cnameRecords.isEmpty()) {
             // if the node we're looking for is not in the cache and is not a CNAME, but a CNAME exists in the cache
             // do a query again with the CNAME -> look for the IP address of the CNAME
             for (ResourceRecord cnameRecord : cnameRecords) {
                 String newCnameQuery = cnameRecord.getTextResult();
                 DNSNode newQuery = new DNSNode(newCnameQuery, node.getType());
+
+                while (true) {
+                    // to check if there's CNAME RRs that are already in the cache
+                    Set<ResourceRecord> cachedCnameResults = cache.getCachedResults(new DNSNode(newCnameQuery, RecordType.CNAME));
+                    if (cachedCnameResults.isEmpty()) {
+                        break;
+                    } else {
+                        for (ResourceRecord result : cachedCnameResults) {
+                            newCnameQuery = result.getTextResult();
+                            newQuery = new DNSNode(newCnameQuery, node.getType());
+                        }
+                    }
+                }
+
                 return getResults(newQuery, indirectionLevel + 1);
             }
             // ----- end

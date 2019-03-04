@@ -183,35 +183,43 @@ public class DNSLookupService {
      * @return A set of resource records corresponding to the specific query requested.
      */
     private static Set<ResourceRecord> getResults(DNSNode node, int indirectionLevel) {
+        // return empty set if max indirection level is reached
         if (indirectionLevel > MAX_INDIRECTION_LEVEL) {
             System.err.println("Maximum number of indirection levels reached.");
             return Collections.emptySet();
         }
 
-        // TODO: rename variables and increment indirection count
-        DNSNode testNode = new DNSNode(node.getHostName(), RecordType.CNAME);
-        Set<ResourceRecord> testRecords = cache.getCachedResults(testNode);
-        if (!testRecords.isEmpty()) {
-            for (ResourceRecord testRecord : testRecords) {
-                String testCnameQuery = testRecord.getTextResult();
-                DNSNode testQuery = new DNSNode(testCnameQuery, node.getType());
+        DNSNode cnameNode = new DNSNode(node.getHostName(), RecordType.CNAME);
+        Set<ResourceRecord> cnameRecords = cache.getCachedResults(cnameNode);
+        if (!cnameRecords.isEmpty()) {
+            // if a CNAME record exists for the node
+            for (ResourceRecord cnameRecord : cnameRecords) {
+                String newCnameQuery = cnameRecord.getTextResult();
+                DNSNode newQuery = new DNSNode(newCnameQuery, node.getType());
                 while (true) {
+                    if (indirectionLevel > MAX_INDIRECTION_LEVEL) {
+                        System.err.println("Maximum number of indirection levels reached.");
+                        return Collections.emptySet();
+                    }
                     // to check if there's CNAME RRs that are already in the cache
-                    Set<ResourceRecord> cachedCnameResults = cache.getCachedResults(new DNSNode(testCnameQuery, RecordType.CNAME));
+                    Set<ResourceRecord> cachedCnameResults = cache.getCachedResults(new DNSNode(newCnameQuery, RecordType.CNAME));
                     if (cachedCnameResults.isEmpty()) {
-                        testNode = new DNSNode(testQuery.getHostName(), node.getType());
+                        cnameNode = new DNSNode(newQuery.getHostName(), node.getType());
                         break;
                     } else {
                         for (ResourceRecord result : cachedCnameResults) {
-                            testCnameQuery = result.getTextResult();
-                            testQuery = new DNSNode(testCnameQuery, node.getType());
+                            // follow the CNAME into the cache
+                            newCnameQuery = result.getTextResult();
+                            newQuery = new DNSNode(newCnameQuery, node.getType());
+                            indirectionLevel++;
                         }
                     }
                 }
             }
         }
 
-        node = new DNSNode(testNode.getHostName(), node.getType());
+        node = new DNSNode(cnameNode.getHostName(), node.getType());
+
         // look for record in cache; if found return
         if (cache.getCachedResults(node).isEmpty()) {
             retrieveResultsFromServer(node, currentServer);
@@ -223,9 +231,8 @@ public class DNSLookupService {
         }
 
         // if the DNSNode is a CNAME, have to do recursion to handle the root domain
-        // TODO: increment indirection count
-        DNSNode cnameNode = new DNSNode(node.getHostName(), RecordType.CNAME);
-        Set<ResourceRecord> cnameRecords = cache.getCachedResults(cnameNode);
+        cnameNode = new DNSNode(node.getHostName(), RecordType.CNAME);
+        cnameRecords = cache.getCachedResults(cnameNode);
         if (node.getType() != RecordType.CNAME && !cnameRecords.isEmpty()) {
             // if the node we're looking for is not in the cache and is not a CNAME, but a CNAME exists in the cache
             // do a query again with the CNAME -> look for the IP address of the CNAME
@@ -234,23 +241,29 @@ public class DNSLookupService {
                 DNSNode newQuery = new DNSNode(newCnameQuery, node.getType());
 
                 while (true) {
+                    if (indirectionLevel > MAX_INDIRECTION_LEVEL) {
+                        System.err.println("Maximum number of indirection levels reached.");
+                        return Collections.emptySet();
+                    }
                     // to check if there's CNAME RRs that are already in the cache
                     Set<ResourceRecord> cachedCnameResults = cache.getCachedResults(new DNSNode(newCnameQuery, RecordType.CNAME));
                     if (cachedCnameResults.isEmpty()) {
                         break;
                     } else {
                         for (ResourceRecord result : cachedCnameResults) {
+                            // follow the CNAME into the cache
                             newCnameQuery = result.getTextResult();
                             newQuery = new DNSNode(newCnameQuery, node.getType());
+                            indirectionLevel++;
                         }
                     }
                 }
-
                 return getResults(newQuery, indirectionLevel + 1);
             }
             // ----- end
         }
 
+        // if there's a next address, query with new address
         if (nextAddress != null) {
             currentServer = nextAddress;
             nextAddress = null;
@@ -343,10 +356,13 @@ public class DNSLookupService {
                         return;
                     }
                 }
+                // set next DNS server to query as the first additional record
                 nextAddress = additional.get(0).getInetResult();
             } else {
+                // if the response is authoritative
                 List<ResourceRecord> authorities = filterNSRecords(response.getAuthorityRRs());
                 if (authorities.size() >= 1) {
+                    //if there's name sever records, reset the current server to query to original root server
                     currentServer = rootServer;
                     for (ResourceRecord authority : authorities) {
                         if (authority.getHostName().equals(currentDomain)) {
@@ -358,7 +374,7 @@ public class DNSLookupService {
                 }
             }
         } else {
-            // reset the current server to query to original root server
+            // if the server is authoritative, reset the current server to query to original root server
             currentServer = rootServer;
         }
     }
@@ -719,10 +735,11 @@ public class DNSLookupService {
     private static String getIpv4Address(byte[] data) {
         StringBuilder ipAddress = new StringBuilder();
         for (byte b : data) {
-            // unsigned int
+            // convert each byte to an unsigned int
             ipAddress.append((int) b & 0xFF).append(".");
         }
         int addressLength = ipAddress.toString().length();
+        // remove the last extra period
         return ipAddress.toString().substring(0, addressLength - 1);
     }
 
@@ -738,17 +755,21 @@ public class DNSLookupService {
         for (byte datum : data) {
             ipAddress.append(String.format("%02x", datum));
             if (colonFlag) {
+                // append a colon for every second byte
                 ipAddress.append(":");
                 colonFlag = false;
             } else {
                 colonFlag = true;
             }
         }
+        // split the address by colons
         String[] splitAddress = ipAddress.toString().split(":");
         StringBuilder ipAddressBuilder = new StringBuilder();
         for (String s : splitAddress) {
+            // convert to int to remove trailing and leading zeroes
             ipAddressBuilder.append(String.format("%x", Integer.parseInt(s, 16))).append(":");
         }
+        // removes the last extra colon from the address
         return ipAddressBuilder.toString().substring(0, ipAddressBuilder.toString().length() - 1);
     }
 

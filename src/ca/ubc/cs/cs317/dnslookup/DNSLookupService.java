@@ -187,7 +187,30 @@ public class DNSLookupService {
             System.err.println("Maximum number of indirection levels reached.");
             return Collections.emptySet();
         }
-
+//
+        DNSNode testNode = new DNSNode(node.getHostName(), RecordType.CNAME);
+        Set<ResourceRecord> testRecords = cache.getCachedResults(testNode);
+        if (!testRecords.isEmpty()) {
+            for (ResourceRecord testRecord : testRecords) {
+                String testCnameQuery = testRecord.getTextResult();
+                DNSNode testQuery = new DNSNode(testCnameQuery, node.getType());
+                while (true) {
+                    // to check if there's CNAME RRs that are already in the cache
+                    Set<ResourceRecord> cachedCnameResults = cache.getCachedResults(new DNSNode(testCnameQuery, RecordType.CNAME));
+                    if (cachedCnameResults.isEmpty()) {
+                        testNode = new DNSNode(testQuery.getHostName(), node.getType());
+                        break;
+                    } else {
+                        for (ResourceRecord result : cachedCnameResults) {
+                            testCnameQuery = result.getTextResult();
+                            testQuery = new DNSNode(testCnameQuery, node.getType());
+                        }
+                    }
+                }
+            }
+        }
+//
+//        node = new DNSNode(testNode.getHostName(), node.getType());
         // look for record in cache; if found return
         if (cache.getCachedResults(node).isEmpty()) {
             retrieveResultsFromServer(node, currentServer);
@@ -296,7 +319,7 @@ public class DNSLookupService {
             for (ResourceRecord record : response.getAnswerRRs()) {
                 verbosePrintResourceRecord(record, record.getType().getCode());
             }
-            System.out.printf("  Name Servers (%d)\n", response.getNsCount());
+            System.out.printf("  Nameservers (%d)\n", response.getNsCount());
             for (ResourceRecord record : response.getAuthorityRRs()) {
                 verbosePrintResourceRecord(record, record.getType().getCode());
             }
@@ -323,6 +346,7 @@ public class DNSLookupService {
             } else {
                 List<ResourceRecord> authorities = filterNSRecords(response.getAuthorityRRs());
                 if (authorities.size() >= 1) {
+                    currentServer = rootServer;
                     for (ResourceRecord authority : authorities) {
                         if (authority.getHostName().equals(currentDomain)) {
                             nextNSRecord = authority.getTextResult();
@@ -330,7 +354,6 @@ public class DNSLookupService {
                         }
                     }
                     nextNSRecord = authorities.get(0).getTextResult();
-                    currentServer = rootServer;
                 }
             }
         } else {
@@ -467,7 +490,7 @@ public class DNSLookupService {
         // assume response is less than 1024 bytes
         DNSMessage message = new DNSMessage();
 
-        // ------ HEADER ------ 
+        // ------ HEADER ------
 
         // ID (16 bits - 2 bytes)
         byte[] parsedId = {response[0], response[1]};
@@ -567,7 +590,7 @@ public class DNSLookupService {
 
         bytePosParse = 12; // byte to start parsing variable length entries
 
-        // ------ QUESTION ------ 
+        // ------ QUESTION ------
         // variable length
 
         for (int qNum = 0; qNum < QDCOUNT; qNum++) {

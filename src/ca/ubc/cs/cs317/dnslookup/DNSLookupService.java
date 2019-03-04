@@ -187,7 +187,8 @@ public class DNSLookupService {
             System.err.println("Maximum number of indirection levels reached.");
             return Collections.emptySet();
         }
-//
+
+        // TODO: rename variables and increment indirection count
         DNSNode testNode = new DNSNode(node.getHostName(), RecordType.CNAME);
         Set<ResourceRecord> testRecords = cache.getCachedResults(testNode);
         if (!testRecords.isEmpty()) {
@@ -209,8 +210,8 @@ public class DNSLookupService {
                 }
             }
         }
-//
-//        node = new DNSNode(testNode.getHostName(), node.getType());
+
+        node = new DNSNode(testNode.getHostName(), node.getType());
         // look for record in cache; if found return
         if (cache.getCachedResults(node).isEmpty()) {
             retrieveResultsFromServer(node, currentServer);
@@ -222,7 +223,7 @@ public class DNSLookupService {
         }
 
         // if the DNSNode is a CNAME, have to do recursion to handle the root domain
-
+        // TODO: increment indirection count
         DNSNode cnameNode = new DNSNode(node.getHostName(), RecordType.CNAME);
         Set<ResourceRecord> cnameRecords = cache.getCachedResults(cnameNode);
         if (node.getType() != RecordType.CNAME && !cnameRecords.isEmpty()) {
